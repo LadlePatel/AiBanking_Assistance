@@ -1,0 +1,9 @@
+flask[async]
+flask-cors
+langchain
+langchain-openai
+langchain-cohere
+langchain-community
+pinecone-client
+python-dotenv
+mcp

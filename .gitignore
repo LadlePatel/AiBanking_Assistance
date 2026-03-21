@@ -1,0 +1,13 @@
+venv
+node_modules
+.env
+__pycache__
+app.log
+chroma_db
+rag_app.db
+docs
+.firebase
+app.yaml
+api/uploads/*
+api/documents.json
+api/mcp_config.json

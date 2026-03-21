@@ -1,0 +1,15 @@
+langchain-openai
+langchain_community
+langchain
+pinecone-client
+langchain-pinecone
+langchain-cohere
+flask
+gunicorn
+pymupdf
+langdetect
+pypdf
+flask_cors
+python-dotenv
+# spacy
+# en-core-web-sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.6.0/en_core_web_sm-3.6.0-py3-none-any.whl

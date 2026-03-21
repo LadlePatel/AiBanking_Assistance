@@ -1,0 +1,9 @@
+PersonalGPT/
+venv/
+*.pyc
+__pycache__/
+.git/
+.gitignore
+.env
+docs
+api/test.py

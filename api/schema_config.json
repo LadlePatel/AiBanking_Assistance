@@ -1,0 +1,40 @@
+{
+    "description": "LLM-friendly schema patches for MCP tools. Uses pattern matching to avoid repetitive config.",
+    "global_rules": {
+        "strip_null_values": true,
+        "server_patterns": {
+            "sanity": {
+                "description": "Auto-apply to ALL tools from Sanity MCP server",
+                "field_rules": {
+                    "resource": {
+                        "when": {
+                            "type": "object",
+                            "has_properties": [
+                                "projectId",
+                                "dataset"
+                            ]
+                        },
+                        "x-llm-simplify": {
+                            "from": "object",
+                            "to": "string",
+                            "description": "The Sanity workspace project ID (e.g. 'myproject'). Dataset defaults to 'production'.",
+                            "examples": [
+                                "myproject",
+                                "sanity-studio"
+                            ],
+                            "reconstruct": {
+                                "template": {
+                                    "projectId": "{value}",
+                                    "dataset": "production"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "patches": {
+        "_note": "Only use this for tool-specific overrides. Most tools should use server_patterns above."
+    }
+}
