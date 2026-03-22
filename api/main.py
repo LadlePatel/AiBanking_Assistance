@@ -3,7 +3,7 @@ from datetime import datetime
 from flask_cors import CORS
 from chroma_util import index_document_to_chroma, show_metadata, delete_doc_from_chroma
 from pydantic_models import QueryInput, QueryResponse, DeleteFileRequest
-from langchain_util import get_rag_chain, stream_rag_chain
+from agent_engine import get_rag_chain, stream_rag_chain
 from document_util import get_all_documents, insert_document_record, delete_document_record, get_document_by_filename
 import os
 import json

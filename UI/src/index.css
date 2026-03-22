@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Lora:ital,wght@0,400;0,500;0,600;1,400&family=Fira+Code:wght@300;400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Fira+Code:wght@300;400;500;600&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -6,100 +6,102 @@
 
 @layer base {
   :root {
-    /* Dark Mode Colors (Default) */
-    --bg-primary: #212121;
-    --bg-secondary: #1b1b1b;
-    --bg-chat: #212121;
-    --bg-input: #303030;
-    --bg-user-msg: #b44d19;
-    --bg-ai-msg: #111827;
+    /* Premium Midnight Theme Colors (Default Dark) */
+    --bg-primary: #09090b;      /* Zinc 950 */
+    --bg-secondary: #0c0c0e;    /* Slightly lighter midnight */
+    --bg-chat: #09090b;
+    --bg-input: #18181b;      /* Zinc 900 */
+    --bg-user-msg: #18181b;   /* Seamless user bubble */
+    --bg-ai-msg: #09090b;     /* AI response on background */
 
-    --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    --font-serif: 'Lora', Georgia, Cambria, "Times New Roman", Times, serif;
+    --font-heading: 'Outfit', sans-serif;
+    --font-body: 'Plus Jakarta Sans', sans-serif;
+    --font-mono: 'Fira Code', monospace;
 
-    /* Text Colors - Dark */
-    --text-primary: #ffffff;
-    --text-secondary: #A1A1AA;
-    --text-muted: #6B7280;
-    --text-user: #ffffff;
+    /* Text Colors - Premium Zinc */
+    --text-primary: #fafafa;    /* Zinc 50 */
+    --text-secondary: #a1a1aa;  /* Zinc 400 */
+    --text-muted: #71717a;     /* Zinc 500 */
+    --text-user: #fafafa;
 
-    /* Code Block Colors - Dark */
-    --code-bg: #1a1716;
-    --code-text: #ffffff;
-    --code-header: #2b2a2a;
-    --code-inline-bg: rgba(180, 77, 25, 0.3);
+    /* Code Block Colors */
+    --code-bg: #111111;
+    --code-text: #e4e4e7;
+    --code-header: #1a1a1a;
+    --code-inline-bg: rgba(217, 119, 6, 0.1); /* Amber 600 tint */
 
-    /* Accent Color - Teal */
-    --accent-color: #b44d19;
-    --accent-color-hover: #f79c6f;
+    /* Accent Color - Amber Gold */
+    --accent-primary: #d97706;  /* Amber 600 */
+    --accent-hover: #f59e0b;    /* Amber 500 */
+    --accent-glow: rgba(217, 119, 6, 0.4);
 
-    /* Borders - Orange/Dark */
-    --border-subtle: rgba(146, 59, 15, 0.2);
-    --border-medium: rgba(241, 113, 50, 0.918);
+    /* Glass and Surfaces */
+    --bg-glass: rgba(24, 24, 27, 0.7);
+    --bg-surface-subtle: rgba(255, 255, 255, 0.05);
 
-    /* Typography Scale - Claude Style */
-    --font-size-xs: 13px;
+    /* Borders */
+    --border-subtle: rgba(39, 39, 42, 0.5); /* Zinc 800 subtle */
+    --border-medium: #27272a;               /* Zinc 800 */
+    --border-accent: rgba(217, 119, 6, 0.3);
+    --border-glass: rgba(255, 255, 255, 0.08);
+
+    /* Design Tokens */
+    --font-size-xs: 12px;
     --font-size-sm: 14px;
-    --font-size-base: 15px;
-    --font-size-lg: 16px;
-    --font-size-xl: 18px;
-    --font-size-2xl: 20px;
-    --font-size-3xl: 24px;
-
-    /* Line Heights */
-    --line-height-tight: 1.25;
-    --line-height-normal: 1.5;
-    --line-height-relaxed: 1.6;
+    --font-size-base: 16px;
+    --font-size-lg: 18px;
+    --font-size-xl: 20px;
+    --font-size-2xl: 24px;
+    --font-size-3xl: 30px;
+    
+    --radius-lg: 0.75rem;
+    --radius-xl: 1rem;
+    --radius-2xl: 1.5rem;
   }
 
-  /* Light Mode Colors */
+  /* Refined Light Mode (Still using premium tokens) */
   :root:not(.dark) {
-    --bg-primary: #FFFFFF;
-    --bg-secondary: #F7F7F8;
-    --bg-chat: #FFFFFF;
-    --bg-input: #FFFFFF;
-    --bg-user-msg: #ffe7d9;
-    --bg-ai-msg: #FFFFFF;
+    --bg-primary: #ffffff;
+    --bg-secondary: #fdfdfd;
+    --bg-chat: #ffffff;
+    --bg-input: #f4f4f5;
+    --bg-user-msg: #f4f4f5;
+    --bg-ai-msg: #ffffff;
+    
+    --bg-glass: rgba(255, 255, 255, 0.7);
+    --bg-surface-subtle: rgba(0, 0, 0, 0.04);
 
-    /* Text Colors - Light */
-    --text-primary: #2D2D2D;
-    --text-user: #4a2206;
-    --text-secondary: #6E6E80;
-    --text-muted: #8E8EA0;
+    --text-primary: #09090b;
+    --text-secondary: #3f3f46;
+    --text-muted: #71717a;
+    --text-user: #09090b;
 
-    /* Code Block Colors - Light */
-    --code-bg: #4b4a49;
-    --code-text: #ffffff;
-    --code-header: #c5c1bf;
-    --code-inline-bg: rgba(255, 231, 217, 0.5);
+    --code-bg: #f4f4f5;
+    --code-text: #18181b;
+    --code-header: #e4e4e7;
 
-    /* Accent stays same */
-    --accent-color: #b44d19;
-    --accent-color-hover: #f79c6f;
-
-    /* Borders - Orange/Light */
-    --border-subtle: rgba(146, 59, 15, 0.2);
-    --border-medium: rgba(241, 113, 50, 0.918);
+    --border-subtle: rgba(0, 0, 0, 0.08);
+    --border-medium: rgba(0, 0, 0, 0.15);
+    --border-glass: rgba(0, 0, 0, 0.06);
   }
 
   body {
       margin: 0;
-      font-family: var(--font-sans);
-      --default-mono-font-family: "SF Mono", "Monaco", "Inconsolata", "Fira Mono", "Droid Sans Mono", "Source Code Pro", ui-monospace, monospace;
+      font-family: var(--font-body);
+      --default-mono-font-family: var(--font-mono);
       -webkit-font-smoothing: antialiased;
       -moz-osx-font-smoothing: grayscale;
       background-color: var(--bg-primary);
       color: var(--text-primary);
-      /* Claude's base font size for optimal readability */
       font-size: var(--font-size-base);
       line-height: var(--line-height-normal);
       transition: background-color 0.3s ease, color 0.3s ease;
     }
 
-    /* Custom Scrollbar for dark theme */
+    /* Custom Scrollbar - Minimal Silver */
     ::-webkit-scrollbar {
-      width: 4px;
-      height: 8px;
+      width: 5px;
+      height: 5px;
     }
 
     ::-webkit-scrollbar-track {
@@ -107,207 +109,108 @@
     }
 
     ::-webkit-scrollbar-thumb {
-      background: #c2a899;
+      background: var(--border-medium);
       border-radius: 9999px;
     }
 
     ::-webkit-scrollbar-thumb:hover {
-      background: #72655e;
-    }
-
-    .custom-scrollbar::-webkit-scrollbar {
-      width: 6px;
+      background: var(--text-muted);
     }
 }
 
-
 @layer components {
+  .glass {
+    background: var(--bg-glass);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--border-glass);
+  }
 
-  /* Message animations */
-  @keyframes fadeInUp {
+  .glass-light {
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--border-subtle);
+  }
+
+  /* Message animations - Smoother */
+  @keyframes slideReveal {
     from {
       opacity: 0;
-      transform: translateY(10px);
+      transform: translateY(20px);
     }
-
     to {
       opacity: 1;
       transform: translateY(0);
     }
   }
 
-  .message-enter {
-    animation: fadeInUp 0.3s ease-out;
+  .message-reveal {
+    animation: slideReveal 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   }
 
   /* Typing indicator animation */
   @keyframes pulse {
-
-    0%,
-    100% {
-      opacity: 0.4;
-    }
-
-    50% {
-      opacity: 1;
-    }
+    0%, 100% { opacity: 0.3; transform: scale(0.8); }
+    50% { opacity: 1; transform: scale(1); }
   }
 
   .dot-pulse {
-    animation: pulse 1.4s ease-in-out infinite;
+    animation: pulse 1.5s ease-in-out infinite;
   }
 
-  .dot-pulse:nth-child(2) {
-    animation-delay: 0.2s;
+  /* Premium Buttons */
+  .btn-premium {
+    @apply transition-all duration-300 font-medium rounded-xl flex items-center justify-center gap-2;
+    background: var(--accent-primary);
+    color: white;
+    box-shadow: 0 4px 15px -3px var(--accent-glow);
   }
 
-  .dot-pulse:nth-child(3) {
-    animation-delay: 0.4s;
+  .btn-premium:hover {
+    background: var(--accent-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 8px 20px -3px var(--accent-glow);
   }
 
-  /* Button hover brightness */
-  .btn-hover-bright:hover {
-    filter: brightness(1.06);
+  .btn-secondary {
+    @apply transition-all duration-300 font-medium rounded-xl flex items-center justify-center gap-2 border border-[var(--border-medium)];
+    background: var(--bg-input);
+    color: var(--text-primary);
   }
 
-  /* Focus glow effect for input */
-  .focus-glow:focus-within {
-    box-shadow: 0 0 0 2px var(--accent-color);
+  .btn-secondary:hover {
+    border-color: var(--text-muted);
+    background: var(--bg-secondary);
   }
 
-  /* Answer HTML Structure Styling - Claude Style */
-  /* Answer HTML Structure Styling - Claude Style */
+  /* Typography Polish */
   .answer {
-    font-family: var(--font-serif);
+    font-family: var(--font-body);
     font-size: var(--font-size-base);
-    line-height: var(--line-height-normal);
-  }
-
-  .answer p {
-    margin-bottom: 1.25rem;
-  }
-
-  .answer p:last-child {
-    margin-bottom: 0;
-  }
-
-  .answer ul,
-  .answer ol {
-    margin-left: 0;
-    margin-bottom: 1.25rem;
-    padding-left: 1.75rem;
-  }
-
-  .answer ul {
-    list-style-type: disc;
-  }
-
-  .answer ol {
-    list-style-type: decimal;
-  }
-
-  .answer li {
-    margin-bottom: 0.375rem;
     line-height: var(--line-height-relaxed);
   }
 
-  .answer .footer {
-    opacity: 0.65;
-    font-size: var(--font-size-sm);
-    margin-top: 1rem;
-    font-style: italic;
-  }
-
-  .answer strong,
-  .answer b {
-    font-weight: 600;
+  h1, h2, h3, h4 {
+    font-family: var(--font-heading);
+    letter-spacing: -0.02em;
     color: var(--text-primary);
   }
 
-  .answer code {
-    background-color: var(--code-inline-bg);
-    padding: 0.125rem 0.375rem;
-    border-radius: 4px;
-    font-family: var(--default-mono-font-family);
-    font-size: var(--font-size-sm);
-    color: var(--text-primary);
-  }
-
-  .answer pre {
-    background-color: var(--bg-secondary);
-    padding: 1rem;
-    border-radius: 6px;
-    overflow-x: auto;
-    margin-bottom: 1rem;
-  }
-
-  .answer pre code {
-    background: transparent;
-    padding: 0;
-    color: var(--text-primary);
-  }
-
-  /* Override Tailwind prose pre background */
-  .prose pre {
-    background-color: transparent !important;
-  }
-
-  /* Apply mono font to all code elements */
-  .prose code {
-    font-family: var(--default-mono-font-family) !important;
-    font-size: var(--font-size-sm) !important;
-  }
-
-  /* Headings - Claude style */
-  h1,
-  h2,
-  h3,
-  h4,
-  h5,
-  h6 {
-    font-family: var(--font-sans);
-    line-height: var(--line-height-tight);
-    font-weight: 600;
-  }
-
-  h1 {
-    font-size: var(--font-size-3xl);
-  }
-
-  h2 {
-    font-size: var(--font-size-2xl);
-  }
-
-  h3 {
-    font-size: var(--font-size-xl);
-  }
-
-  h4 {
-    font-size: var(--font-size-lg);
-  }
-
-  h5,
-  h6 {
-    font-size: var(--font-size-base);
+  .text-gradient {
+    background: linear-gradient(135deg, var(--text-primary) 0%, var(--text-secondary) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
   }
 }
 
 @layer utilities {
-  .no-scrollbar::-webkit-scrollbar {
-    display: none;
-  }
-
-  .no-scrollbar {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-  }
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 }
 
-/* Material Symbols Icon Font */
+/* Material Symbols Icon Font Polish */
 .material-symbols-rounded {
-  font-variation-settings:
-    'FILL' 0,
-    'wght' 300,
-    'GRAD' 0,
-    'opsz' 24;
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+  font-size: 20px;
 }

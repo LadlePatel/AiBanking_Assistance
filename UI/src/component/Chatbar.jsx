@@ -105,17 +105,6 @@ const Chatbar = ({
     }
   }, [targetPage, numPages, activeDocument]); // Re-run if doc changes to same doc but different page
 
-  const questionList = [
-    "Summarize this document",
-    "Key points",
-    "Find contact details",
-    "Experience listed?",
-    "Main topic?",
-    "Skills mentioned?",
-    "Brief overview",
-    "Terms and conditions"
-  ];
-
   function onDocumentLoadSuccess({ numPages }) {
     setNumPages(numPages);
   }
@@ -125,7 +114,7 @@ const Chatbar = ({
     const docName = context.source;
     const foundDoc = attachedFiles.find(f => f.name === docName || f.filename === docName);
 
-    if (foundDoc) {
+    if (foundDoc) { 
       onViewDocument?.(foundDoc);
       setTargetPage(context.page);
     } else {
@@ -559,18 +548,48 @@ const Chatbar = ({
             }}
           />
         ) : (
-          <div className="text-center py-8 text-[var(--text-muted)] text-sm h-full flex flex-col items-center justify-center">
-            <div className="w-16 h-16 bg-gradient-to-br from-[var(--accent-color)] to-[var(--accent-color-hover)] rounded-2xl flex items-center justify-center mb-6 shadow-lg">
-              <span className="material-symbols-rounded text-white" style={{ fontSize: '32px' }}>auto_awesome</span>
-            </div>
-            <h3 className="text-2xl font-semibold mb-2 text-[var(--text-primary)]">AI Banking Assistant</h3>
-            <p className="text-[var(--text-secondary)] mb-8">Ask me anything...</p>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 w-full max-w-2xl px-4 mt-8">
-              {questionList.slice(0, 4).map((q, i) => (
-                <button key={i} onClick={() => sendMessage(q)} className="p-4 bg-[var(--bg-input)] hover:bg-[var(--bg-user-msg)] rounded-xl text-sm text-[var(--text-primary)] text-left transition-all border border-[var(--border-medium)] hover:border-[var(--accent-color)]/30 group">
-                  <div className="font-medium mb-1">{q}</div>
-                  <div className="text-xs text-[var(--text-muted)] group-hover:text-[var(--text-secondary)]">Sample prompt →</div>
-                </button>
+          <div className="flex-1 flex flex-col items-center justify-center px-4 max-w-4xl mx-auto w-full h-full pb-20">
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, ease: "easeOut" }}
+              className="text-center mb-12"
+            >
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-500 text-[10px] font-bold uppercase tracking-[0.2em] mb-6">
+                <span className="material-symbols-rounded !text-sm">verified_user</span>
+                Secure Banking Environment
+              </div>
+              <h1 className="text-4xl md:text-5xl font-display font-bold text-[var(--text-primary)] mb-4 tracking-tight">
+                Good morning, <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-amber-600">Premium Member</span>
+              </h1>
+              <p className="text-[var(--text-secondary)] text-lg font-light max-w-lg mx-auto leading-relaxed">
+                I'm your AI Banking Assistant. How can I facilitate your financial operations today?
+              </p>
+            </motion.div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
+              {[
+                { icon: 'account_balance', label: 'Financial Overview', desc: 'Detailed analysis of your assets and liabilities' },
+                { icon: 'payments', label: 'Internal Transfer', desc: 'Securely move funds between your accounts' },
+                { icon: 'analytics', label: 'Investment Insights', desc: 'Market trends and portfolio performance' },
+                { icon: 'security', label: 'Security Audit', desc: 'Review recent suspicious activities' }
+              ].map((item, i) => (
+                <motion.button
+                  key={i}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.1 * i + 0.5 }}
+                  onClick={() => sendMessage(item.label)}
+                  className="flex items-start gap-4 p-5 rounded-2xl bg-[var(--bg-surface-subtle)] border border-[var(--border-subtle)] hover:bg-[var(--bg-glass)] hover:border-amber-500/30 transition-all text-left group"
+                >
+                  <div className="size-10 rounded-xl bg-[var(--bg-surface-subtle)] flex items-center justify-center text-amber-500 group-hover:bg-amber-500 group-hover:text-white transition-all shadow-lg shrink-0">
+                    <span className="material-symbols-rounded !text-xl">{item.icon}</span>
+                  </div>
+                  <div>
+                    <div className="font-bold text-[var(--text-primary)] mb-1">{item.label}</div>
+                    <div className="text-xs text-[var(--text-muted)] group-hover:text-[var(--text-secondary)] transition-colors">{item.desc}</div>
+                  </div>
+                </motion.button>
               ))}
             </div>
           </div>
@@ -578,142 +597,127 @@ const Chatbar = ({
       </div>
 
       {/* Input Area - Fixed at bottom */}
-      <div className="w-full bg-gradient-to-t from-[var(--bg-primary)] via-[var(--bg-primary)] to-transparent pt-2 px-4">
+      <div className="w-full bg-gradient-to-t from-[var(--bg-primary)] via-[var(--bg-primary)] to-transparent pt-2 px-4 md:px-8 pb-8">
         <div className="max-w-4xl mx-auto relative">
-
-
-
-          {/* Main Input Container - ChatGPT Style Grid */}
-          <div className="relative bg-[var(--bg-input)] border-2 border-[var(--border-medium)] transition-all p-2 md:p-2.5 grid grid-cols-[auto_1fr_auto] grid-rows-[1fr_auto]" style={{ borderRadius: '28px' }}>
-
-            {/* Leading (+ Button) */}
-            <div className="flex items-center justify-center">
-              <button
-                onClick={onAddDocument}
-                className="flex items-center justify-center w-9 h-9 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors rounded-lg hover:bg-[var(--bg-user-msg)]"
-                aria-label="Add files and more"
-              >
-                <span className="material-symbols-rounded text-[20px]">add</span>
-              </button>
-            </div>
-
-            {/* Primary (Textarea) */}
-            <div className="flex items-center min-h-[40px]">
-              <textarea
-                ref={textareaRef}
-                value={message}
-                onChange={handleInputChange}
-                onKeyDown={handleKeyDown}
-                rows="1"
-                disabled={Object.keys(pendingApprovals).length > 0 || allMessages.some(m => m.approval_request?.status === 'executing')}
-                className="w-full bg-transparent border-none text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:ring-0 outline-none resize-none max-h-[200px] py-0 custom-scrollbar text-[15px]"
-                placeholder={Object.keys(pendingApprovals).length > 0 ? "Action required..." : (allMessages.some(m => m.approval_request?.status === 'executing') ? "Executing tool..." : "Ask anything")}
-                style={{ minHeight: '24px', lineHeight: '24px' }}
-              />
-            </div>
-
-            {/* Trailing (Send Button) */}
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => response ? stopGeneration() : sendMessage(message)}
-                disabled={(message.trim() === "" && !response) || Object.keys(pendingApprovals).length > 0 || allMessages.some(m => m.approval_request?.status === 'executing')}
-                className={`flex items-center justify-center w-9 h-9 rounded-full transition-all ${response
-                  ? 'bg-[var(--text-primary)] text-[var(--bg-primary)] hover:opacity-80' // Black square for stop
-                  : (message.trim() !== ""
-                    ? 'bg-[var(--accent-color)] text-white hover:opacity-70 shadow-md'
-                    : 'text-[var(--text-muted)] cursor-not-allowed bg-transparent'
-                  )
-                  }`}
-                aria-label={response ? "Stop generation" : "Send message"}
-              >
-                {response ? (
-                  // Stop Icon (Square)
-                  <div className="w-3 h-3 bg-current rounded-[1px]" />
-                ) : (
-                  <span className="material-symbols-rounded text-[18px]">send</span>
-                )}
-              </button>
-            </div>
-
-            {/* Footer (Document Cards) */}
-            <div className="col-span-3 flex flex-col gap-2">
+          <div className="relative glass border border-[var(--border-subtle)] rounded-[2rem] shadow-2xl shadow-black/5 overflow-hidden focus-within:border-amber-500/40 focus-within:ring-4 focus-within:ring-amber-500/5 transition-all duration-500">
+            {/* Header / Document List */}
+            <AnimatePresence>
               {attachedFiles.length > 0 && (
-                <div className="flex flex-wrap gap-2">
+                <motion.div 
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  className="px-6 py-4 flex flex-wrap gap-3 border-b border-[var(--border-subtle)] bg-[var(--bg-surface-subtle)]"
+                >
                   {attachedFiles.map((file, index) => {
                     const isViewing = activeDocument?.name === file.name || activeDocument?.filename === file.filename;
-                    const isSelectedForContext = selectedDocsForContext?.some(
+                    const isSelectedContext = selectedDocsForContext?.some(
                       doc => (doc.name || doc.filename) === (file.name || file.filename)
                     );
 
                     return (
-                      <div
+                      <motion.div
+                        layout
+                        initial={{ scale: 0.8, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
                         key={index}
-                        className={`group relative px-1 rounded-xl border transition-all cursor-pointer flex items-center justify-between gap-2 ${isSelectedForContext
-                          ? 'border-[var(--border-medium)] bg-[var(--accent-color)]'
-                          : 'border-[var(--border-subtle)] hover:border-[var(--border-medium)] hover:bg-[var(--bg-input)]'
-                          }`}
-                        onClick={() => {
-                          // Card click = Toggle context selection only (doesn't open PDF)
-                          onSelectDocument?.(file);
-                        }}
+                        className={`group relative flex items-center gap-3 border rounded-xl px-3 py-2 transition-all cursor-pointer ${
+                          isSelectedContext 
+                          ? 'bg-amber-500/10 border-amber-500/40' 
+                          : 'bg-[var(--bg-surface-subtle)] border-[var(--border-subtle)] hover:border-amber-500/30'
+                        }`}
+                        onClick={() => onSelectDocument?.(file)}
                       >
-                        {/* File Icon + Name */}
-                        <div className="flex items-center gap-2 flex-1 min-w-0">
-                          <span className="material-symbols-rounded text-[14px] text-[var(--text-secondary)]">description</span>
-                          <p className="text-xs text-[var(--text-primary)] truncate">
-                            {file.name || file.filename}
-                          </p>
+                        <div className={`size-8 rounded-lg flex items-center justify-center ${isSelectedContext ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/20' : 'bg-emerald-500/10 text-emerald-500'}`}>
+                          <span className="material-symbols-rounded !text-lg">description</span>
                         </div>
-
-                        {/* Action Buttons */}
-                        <div className="flex items-center gap-1 shrink-0">
+                        <div className="flex flex-col pr-8">
+                          <span className="text-[10px] font-bold text-[var(--text-primary)] truncate max-w-[120px]">{file.name || file.filename}</span>
+                          <span className="text-[9px] text-[var(--text-muted)] uppercase tracking-wider">{isSelectedContext ? 'Context Active' : 'PDF Document'}</span>
+                        </div>
+                        
+                        <div className="absolute right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              // Eye icon = Toggle PDF viewer only (independent of context)
-                              if (isViewing) {
-                                onViewDocument?.(null); // Close PDF viewer
-                              } else {
-                                onViewDocument?.(file); // Open PDF viewer
-                              }
+                              if (isViewing) onViewDocument?.(null);
+                              else onViewDocument?.(file);
                             }}
-                            className={`flex items-center justify-center w-6 h-6 rounded-lg transition-colors ${isViewing
-                              ? 'bg-[var(--accent-color)] text-white'
-                              : 'bg-[var(--bg-input)] hover:bg-[var(--bg-user-msg)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-                              }`}
-                            aria-label={isViewing ? "Close document" : "View document"}
-                            title={isViewing ? "Close document" : "View document"}
+                            className={`size-6 rounded-lg flex items-center justify-center transition-all ${isViewing ? 'bg-amber-500 text-white' : 'bg-black/40 text-[var(--text-secondary)] hover:text-white'}`}
                           >
-                            <span className="material-symbols-rounded text-[14px]">
-                              {isViewing ? 'visibility_off' : 'visibility'}
-                            </span>
+                            <span className="material-symbols-rounded !text-xs">{isViewing ? 'visibility_off' : 'visibility'}</span>
                           </button>
-
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
                               onDeleteDocument?.(file.id || file.fileId);
                             }}
-                            className="flex items-center justify-center w-6 h-6 rounded-lg bg-[var(--bg-input)] hover:bg-red-500/20 text-[var(--text-secondary)] hover:text-red-400 transition-colors"
-                            aria-label="Delete document"
-                            title="Delete document"
+                            className="size-6 rounded-lg bg-black/40 text-[var(--text-secondary)] hover:text-red-400 flex items-center justify-center transition-all"
                           >
-                            <span className="material-symbols-rounded text-[14px]">delete</span>
+                            <span className="material-symbols-rounded !text-xs">delete</span>
                           </button>
                         </div>
-                      </div>
+                      </motion.div>
                     );
                   })}
-                </div>
+                </motion.div>
               )}
+            </AnimatePresence>
 
+            {/* Input Row */}
+            <div className="flex items-end gap-2 p-3 md:p-4">
+              <button 
+                onClick={onAddDocument}
+                className="size-10 rounded-2xl flex items-center justify-center bg-[var(--bg-surface-subtle)] text-[var(--text-secondary)] hover:bg-[var(--border-subtle)] hover:text-[var(--text-primary)] transition-all group shrink-0"
+              >
+                <span className="material-symbols-rounded group-hover:scale-110 transition-transform">add_circle</span>
+              </button>
+              
+              <textarea
+                ref={textareaRef}
+                value={message}
+                onChange={handleInputChange}
+                onKeyDown={handleKeyDown}
+                placeholder={
+                  Object.keys(pendingApprovals).length > 0 
+                  ? "Action required above..." 
+                  : (allMessages.some(m => m.approval_request?.status === 'executing') 
+                  ? "Executing secure protocol..." 
+                  : "Describe your request or ask a question...")
+                }
+                rows={1}
+                disabled={Object.keys(pendingApprovals).length > 0 || allMessages.some(m => m.approval_request?.status === 'executing')}
+                className="flex-1 bg-transparent text-[var(--text-primary)] placeholder-[var(--text-muted)] py-2.5 resize-none max-h-48 overflow-y-auto font-sans leading-relaxed text-[15px]"
+              />
 
+              <div className="flex items-center gap-2 shrink-0">
+                {response ? (
+                  <button
+                    onClick={stopGeneration}
+                    className="size-10 rounded-2xl flex items-center justify-center bg-[var(--text-primary)] text-[var(--bg-primary)] hover:bg-amber-500 hover:text-white transition-all shadow-lg active:scale-95"
+                  >
+                    <span className="material-symbols-rounded font-bold !text-xl">stop</span>
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => sendMessage(message)}
+                    disabled={(!message.trim()) || Object.keys(pendingApprovals).length > 0 || allMessages.some(m => m.approval_request?.status === 'executing')}
+                    className={`size-10 rounded-2xl flex items-center justify-center transition-all shadow-lg active:scale-95 ${
+                      message.trim() 
+                      ? 'bg-amber-500 text-white hover:bg-amber-400 hover:shadow-amber-500/20' 
+                      : 'bg-[var(--bg-surface-subtle)] text-[var(--text-muted)]/30 cursor-not-allowed'
+                    }`}
+                  >
+                    <span className="material-symbols-rounded font-bold">arrow_upward</span>
+                  </button>
+                )}
+              </div>
             </div>
           </div>
 
           {/* Footer Text */}
-          <div className="text-center mt-3">
-            <p className="text-[11px] text-[var(--text-muted)]">Made by <a href="https://sayeedcodes.web.app" target="_blank" className="text-[var(--accent-color)] hover:text-[var(--accent-color-hover)] font-medium" rel="noopener noreferrer">Sayeed Ajmal</a></p>
+          <div className="text-center mt-4">
+             <p className="text-[10px] uppercase tracking-[0.3em] font-bold text-[var(--text-muted)] opacity-30">AiBank Powered by Quantum Agent Engine v3.0</p>
           </div>
         </div>
       </div>
@@ -721,65 +725,85 @@ const Chatbar = ({
   );
 
   const renderDocumentViewer = () => (
-    <div className={`h-full flex flex-col bg-[var(--bg-secondary)]`}>
-      {!activeDocument && (
-        <div className="p-8 text-center text-[var(--text-muted)]">
-          <span className="material-symbols-rounded text-4xl mb-4">description</span>
-          <p>Select a document to view</p>
+    <div className="h-full flex flex-col bg-[var(--bg-primary)] border-l border-[var(--border-subtle)]">
+      <div className="px-6 py-4 border-b border-[var(--border-subtle)] flex items-center justify-between bg-[var(--bg-glass)] backdrop-blur-md">
+        <div className="flex items-center gap-3">
+          <div className="size-8 rounded-lg bg-amber-500/10 flex items-center justify-center text-amber-500">
+            <span className="material-symbols-rounded !text-lg">description</span>
+          </div>
+          <div className="flex flex-col">
+            <span className="text-sm font-bold text-[var(--text-primary)] truncate max-w-[200px]">
+              {activeDocument?.name || activeDocument?.filename || 'Document Viewer'}
+            </span>
+            <span className="text-[10px] text-[var(--text-muted)] uppercase tracking-widest font-bold">
+              Secure PDF Environment
+            </span>
+          </div>
         </div>
-      )}
-      <div className={`flex-1 overflow-y-auto no-scrollbar flex justify-center p-4 bg-[var(--bg-primary)] relative`}>
-        {/* Mobile Close Button for PDF */}
-        {!isDesktop && activeDocument && (
-          <button
-            onClick={() => onViewDocument(null)}
-            className="absolute top-4 right-4 z-50 p-2 bg-black/60 text-white rounded-full backdrop-blur-sm shadow-lg border border-white/20 hover:bg-black/80 transition-all"
-            aria-label="Close PDF"
-          >
-            <span className="material-symbols-rounded text-xl block">close</span>
-          </button>
-        )}
+        <button 
+          onClick={() => onViewDocument(null)}
+          className="size-8 rounded-lg bg-white/5 text-[var(--text-secondary)] hover:bg-red-500 hover:text-white transition-all flex items-center justify-center"
+        >
+          <span className="material-symbols-rounded !text-sm">close</span>
+        </button>
+      </div>
 
-        {activeDocument ? (
-          <div ref={pdfWrapperRef} className="w-full max-w-4xl pt-8 md:pt-0"> {/* Add top padding on mobile for close button space if needed, or overlay it */}
+      <div className="flex-1 overflow-y-auto custom-scrollbar flex justify-center p-4 md:p-8 bg-[var(--bg-primary)]">
+        {!activeDocument ? (
+          <div className="flex flex-col items-center justify-center text-[var(--text-muted)] h-full space-y-4">
+             <div className="size-16 rounded-2xl bg-[var(--bg-surface-subtle)] flex items-center justify-center">
+               <span className="material-symbols-rounded text-3xl opacity-20 text-[var(--text-primary)]">dock_to_left</span>
+             </div>
+             <p className="text-sm font-light">Select a document to initiate analysis</p>
+          </div>
+        ) : (
+          <div ref={pdfWrapperRef} className="w-full max-w-4xl animate-in fade-in slide-in-from-bottom-4 duration-700">
             <Document
               file={`${API_URL}/files/${activeDocument.name || activeDocument.filename}`}
               onLoadSuccess={onDocumentLoadSuccess}
-              loading={<div className="text-[var(--text-muted)] mt-10 text-center">Loading PDF...</div>}
-              error={<div className="text-red-400 mt-10 text-center">Failed to load PDF.</div>}
+              loading={
+                <div className="flex flex-col items-center justify-center mt-20 gap-4">
+                  <div className="size-12 rounded-full border-2 border-amber-500/20 border-t-amber-500 animate-spin" />
+                  <span className="text-xs text-[var(--text-muted)] uppercase tracking-widest">Deciphering...</span>
+                </div>
+              }
+              error={
+                <div className="text-red-400 mt-20 text-center border border-red-500/20 bg-red-500/5 p-6 rounded-2xl">
+                  <span className="material-symbols-rounded text-3xl mb-2 block">warning</span>
+                  <p className="font-bold">Access Denied</p>
+                  <p className="text-xs opacity-60">Unable to establish secure connection to document.</p>
+                </div>
+              }
               className="max-w-full"
             >
               {Array.from(new Array(numPages), (el, index) => {
                 const pageNum = index + 1;
-                // Check if this page has any highlights/citations
                 const pageHighlights = currentHighlights.filter(h => h.page === pageNum);
                 const hasHighlight = pageHighlights.length > 0;
 
                 return (
-                  <div key={`page_${pageNum}`} id={`page_${pageNum}`} className="mb-4 shadow-lg relative">
-                    {/* Citation Badge */}
+                  <div key={`page_${pageNum}`} id={`page_${pageNum}`} className="mb-8 relative rounded-xl overflow-hidden shadow-2xl ring-1 ring-[var(--border-subtle)] group">
                     {hasHighlight && (
-                      <div className="absolute top-2 right-2 z-10 bg-[var(--accent-color)] text-white px-3 py-1 rounded-lg text-xs font-bold shadow-md animate-pulse">
-                        Cited
+                      <div className="absolute top-4 right-4 z-10 bg-amber-500 text-white px-4 py-1.5 rounded-full text-[10px] font-bold shadow-xl shadow-amber-500/20 flex items-center gap-2 animate-pulse">
+                        <span className="material-symbols-rounded !text-[14px]">local_library</span>
+                        SECURE CITATION
                       </div>
                     )}
                     <Page
                       pageNumber={pageNum}
-                      width={pdfWidth || (isDesktop ? 600 : window.innerWidth - 32)} // Fallback width for mobile
+                      width={pdfWidth || (isDesktop ? 700 : window.innerWidth - 64)}
                       renderTextLayer={false}
                       renderAnnotationLayer={false}
-                      className=""
+                      className="transition-transform duration-500 group-hover:scale-[1.01]"
                     />
                   </div>
                 );
               })}
             </Document>
           </div>
-        ) : (
-          <div className="flex items-center justify-center text-[var(--text-muted)] h-full">No active document</div>
         )}
       </div>
-    </div >
+    </div>
   );
 
   return (

@@ -7,8 +7,6 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        // Using CSS variables for theme switching
-        // These reference the variables defined in index.css
         primary: {
           bg: 'var(--bg-primary)',
           secondary: 'var(--bg-secondary)',
@@ -16,8 +14,9 @@ module.exports = {
           input: 'var(--bg-input)',
         },
         accent: {
-          primary: 'var(--accent-color)',
-          hover: 'var(--accent-color-hover)',
+          primary: 'var(--accent-primary)',
+          hover: 'var(--accent-hover)',
+          glow: 'var(--accent-glow)',
         },
         text: {
           primary: 'var(--text-primary)',
@@ -28,17 +27,22 @@ module.exports = {
         border: {
           subtle: 'var(--border-subtle)',
           medium: 'var(--border-medium)',
+          accent: 'var(--border-accent)',
         },
       },
       fontFamily: {
-        sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
-        display: ['Inter', 'system-ui', 'sans-serif'],
+        sans: ['Plus Jakarta Sans', 'system-ui', 'sans-serif'],
+        display: ['Outfit', 'system-ui', 'sans-serif'],
+        mono: ['Fira Code', 'monospace'],
       },
       borderRadius: {
-        'xl': '1rem',
-        '2xl': '1.5rem',
-        '3xl': '2rem',
+        'lg': 'var(--radius-lg)',
+        'xl': 'var(--radius-xl)',
+        '2xl': 'var(--radius-2xl)',
       },
+      animation: {
+        'reveal': 'slideReveal 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+      }
     },
   },
   plugins: [

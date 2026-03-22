@@ -1,3 +1,14 @@
+"""
+AGENT ENGINE: The Brain of the Banking Assistant
+-----------------------------------------------
+This module orchestrates the AI's reasoning and action loops.
+
+TECH NOTE:
+- We use the LANGCHAIN ecosystem for building blocks (LLMs, Prompts, Tools).
+- We use LANGGRAPH as the 'Project Manager' or Orchestrator. 
+  While LangChain handles single steps, LangGraph allows for cycles, retries, 
+  and stateful persistence (memory) that lasts across the conversation.
+"""
 from llm_config import get_llm
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_classic.chains import create_history_aware_retriever, create_retrieval_chain
