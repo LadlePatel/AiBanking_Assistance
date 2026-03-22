@@ -46,17 +46,27 @@ The system is designed as a modular ecosystem:
 
 ### 1. Prerequisites
 - Docker & Docker Compose
-- Python 3.10+
-- Node.js 18+
 - OpenAI API Key
 
-### 2. Launch Infrastructure
+### 2. Full Stack Launch (Docker - Recommended)
 ```bash
-# Start PostgreSQL and ChromaDB
-docker-compose up -d
-```
+# 1. Copy and configure environment (Add your API Key)
+cp .env.example .env
 
-### 3. Backend Setup
+# 2. Build and start all services
+docker-compose up --build
+```
+The application will be available at:
+- **Frontend**: [http://localhost:3000](http://localhost:3000)
+- **API**: [http://localhost:5000](http://localhost:5000)
+
+---
+
+### 3. Manual Development Setup (Optional)
+
+If you prefer to run services individually without Docker:
+
+#### Backend
 ```bash
 # Install dependencies
 pip install -r requirements.txt
@@ -65,11 +75,9 @@ pip install -r requirements.txt
 python api/main.py
 ```
 
-### 4. Frontend Setup
+#### Frontend
 ```bash
-cd UI
-npm install
-npm start
+cd UI && npm install && npm start
 ```
 ---
 

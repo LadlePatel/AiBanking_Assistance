@@ -20,11 +20,45 @@ services:
     ports:
       - "5432:5432"
     environment:
-      POSTGRES_USER: aibank
-      POSTGRES_PASSWORD: aibankpassword
-      POSTGRES_DB: aibank_db
+      POSTGRES_USER: ${POSTGRES_USER:-aibank}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-aibankpassword}
+      POSTGRES_DB: ${POSTGRES_DB:-aibank_db}
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    networks:
+      - aibank_net
+
+  api:
+    build:
+      context: .
+      dockerfile: api/Dockerfile
+    container_name: aibank_api
+    ports:
+      - "5000:5000"
+    environment:
+      - PORT=5000
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-aibank}:${POSTGRES_PASSWORD:-aibankpassword}@postgres/${POSTGRES_DB:-aibank_db}
+      - BANKING_DATABASE_URL=postgresql://${POSTGRES_USER:-aibank}:${POSTGRES_PASSWORD:-aibankpassword}@postgres/${POSTGRES_DB:-aibank_db}
+      - CHROMA_HOST=chromadb
+      - CHROMA_PORT=8000
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+    depends_on:
+      - postgres
+      - chromadb
+    networks:
+      - aibank_net
+
+  ui:
+    build:
+      context: .
+      dockerfile: UI/Dockerfile
+    container_name: aibank_ui
+    ports:
+      - "3000:3000"
+    environment:
+      - REACT_APP_API_URL=http://localhost:5000
+    depends_on:
+      - api
     networks:
       - aibank_net
 

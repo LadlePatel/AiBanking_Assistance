@@ -204,8 +204,15 @@ class McpClient:
         
         logger.info(f"Starting session loop for {name}")
         
+        # Determine the project root (CWD) for local servers
+        project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+        cwd = server_config.get("cwd", project_root)
+        
         try:
              params = StdioServerParameters(command=command, args=args, env=env)
+             # Manually attach cwd if it's not a standard field (auth_aware_stdio_client uses it)
+             params.cwd = cwd
+             
              # Use auth_aware_stdio_client locally or remote to handle potential auth requests anytime
              async with auth_aware_stdio_client(params) as (read, write):
                  async with ClientSession(read, write) as session:
@@ -310,7 +317,9 @@ class McpClient:
         if is_remote:
             # Test connection immediately for remote servers using our custom auth-aware client
             try:
+                project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
                 params = StdioServerParameters(command=command, args=args, env=env)
+                params.cwd = project_root
                 # Use longer timeout for remote auth
                 async with asyncio.timeout(60): 
                     async with auth_aware_stdio_client(params) as (read, write):
@@ -336,7 +345,9 @@ class McpClient:
         
         # Test connection immediately for local servers (with timeout)
         try:
+            project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
             params = StdioServerParameters(command=command, args=args, env=env)
+            params.cwd = project_root
             # Add 300 second timeout to prevent hanging (increased for npx installs)
             async with asyncio.timeout(300):
                 async with stdio_client(params) as (read, write):
