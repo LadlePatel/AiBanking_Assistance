@@ -4,15 +4,15 @@ import { motion, AnimatePresence } from 'framer-motion';
 // --- Helper Components ---
 
 const JsonPrimitive = ({ value }) => {
-    if (value === null) return <span className="text-white/20 italic text-[10px] uppercase tracking-tighter">null</span>;
-    if (value === undefined) return <span className="text-white/20 italic text-[10px] uppercase tracking-tighter">undefined</span>;
+    if (value === null) return <span className="text-[var(--text-muted)] opacity-40 italic text-[10px] uppercase tracking-tighter">null</span>;
+    if (value === undefined) return <span className="text-[var(--text-muted)] opacity-40 italic text-[10px] uppercase tracking-tighter">undefined</span>;
     if (typeof value === 'boolean') return <span className="text-amber-500 font-black">{value.toString()}</span>;
     if (typeof value === 'number') return <span className="text-amber-400 font-mono font-bold leading-none">{value}</span>;
     if (typeof value === 'string') {
         const displayValue = value.length > 120 ? `${value.substring(0, 120)}...` : value;
         return <span className="text-emerald-400/80 break-all leading-relaxed tracking-tight">"{displayValue}"</span>;
     }
-    return <span className="text-white/60">{String(value)}</span>;
+    return <span className="text-[var(--text-secondary)] opacity-70">{String(value)}</span>;
 };
 
 const JsonNode = ({ name, value, depth = 0, isLast = true }) => {
@@ -20,10 +20,10 @@ const JsonNode = ({ name, value, depth = 0, isLast = true }) => {
 
     if (value === null || typeof value !== 'object') {
         return (
-            <div className="font-mono text-[11px] leading-relaxed hover:bg-white/[0.03] px-2 py-1 rounded-lg group transition-colors select-text">
-                {name && <span className="text-white/30 font-bold group-hover:text-white/50 transition-opacity mr-2">{name}:</span>}
+            <div className="font-mono text-[11px] leading-relaxed hover:bg-[var(--bg-surface-subtle)] px-2 py-1 rounded-lg group transition-colors select-text">
+                {name && <span className="text-[var(--text-muted)] opacity-60 font-bold group-hover:text-[var(--text-secondary)] transition-opacity mr-2">{name}:</span>}
                 <JsonPrimitive value={value} />
-                {!isLast && <span className="text-white/10 ml-0.5">,</span>}
+                {!isLast && <span className="text-[var(--text-muted)] opacity-30 ml-0.5">,</span>}
             </div>
         );
     }
@@ -36,9 +36,9 @@ const JsonNode = ({ name, value, depth = 0, isLast = true }) => {
     if (isEmpty) {
         return (
             <div className="font-mono text-[11px] leading-relaxed px-2 py-1 opacity-40">
-                {name && <span className="text-white/30 mr-2">{name}:</span>}
-                <span className="text-white/40">{isArray ? '[]' : '{}'}</span>
-                {!isLast && <span className="text-white/10">,</span>}
+                {name && <span className="text-[var(--text-muted)] opacity-60 mr-2">{name}:</span>}
+                <span className="text-[var(--text-muted)] opacity-50">{isArray ? '[]' : '{}'}</span>
+                {!isLast && <span className="text-[var(--text-muted)] opacity-30">,</span>}
             </div>
         );
     }
@@ -46,11 +46,11 @@ const JsonNode = ({ name, value, depth = 0, isLast = true }) => {
     return (
         <div className="font-mono text-[11px] leading-relaxed">
             <div
-                className="flex items-center gap-2 cursor-pointer hover:bg-white/5 py-1 px-2 rounded-xl select-none group transition-all"
+                className="flex items-center gap-2 cursor-pointer hover:bg-[var(--bg-surface-subtle)] py-1 px-2 rounded-xl select-none group transition-all"
                 onClick={() => setIsExpanded(!isExpanded)}
             >
                 <span className={`material-symbols-rounded !text-[14px] text-amber-500/40 group-hover:text-amber-500 transition-all ${isExpanded ? 'rotate-90' : ''}`}>chevron_right</span>
-                {name && <span className="text-white/50 font-black group-hover:text-white/80 transition-colors uppercase tracking-widest text-[9px]">{name}</span>}
+                {name && <span className="text-[var(--text-muted)] font-black group-hover:text-[var(--text-primary)] transition-colors uppercase tracking-widest text-[9px]">{name}</span>}
                 {!isExpanded && <span className="text-amber-500/30 italic text-[9px] font-bold group-hover:opacity-100 uppercase tracking-tighter ml-auto">{preview}</span>}
             </div>
 
@@ -61,7 +61,7 @@ const JsonNode = ({ name, value, depth = 0, isLast = true }) => {
                         animate={{ height: "auto", opacity: 1 }}
                         exit={{ height: 0, opacity: 0 }}
                         transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-                        className="pl-4 border-l border-white/5 ml-3.5 my-1.5"
+                        className="pl-4 border-l border-[var(--border-subtle)] ml-3.5 my-1.5"
                     >
                         {keys.map((key, index) => (
                             <JsonNode
@@ -134,15 +134,15 @@ const ToolApprovalCard = ({
                         </div>
                     </div>
 
-                    <p className="text-[11px] text-[var(--text-muted)] font-medium mb-6 leading-relaxed italic bg-[var(--bg-surface-subtle)] p-4 rounded-xl border border-white/5">
-                        <span className="text-amber-500/60 font-black mr-2 uppercase tracking-widest text-[9px]">Instruction:</span>
+                    <p className="text-[11px] text-[var(--text-muted)] font-medium mb-6 leading-relaxed italic bg-[var(--bg-surface-subtle)] p-4 rounded-xl border border-[var(--border-subtle)]">
+                        <span className="text-amber-500 font-black mr-2 uppercase tracking-widest text-[9px]">Instruction:</span>
                         {description || `System requests authorization to initiate ${toolName} procedure.`}
                     </p>
 
                     {/* Arguments Preview */}
                     <div className="bg-[var(--bg-surface-subtle)] rounded-2xl p-5 border border-[var(--border-subtle)] mb-6 overflow-x-auto max-h-[300px] custom-scrollbar">
                         <div className="flex items-center justify-between mb-4">
-                            <span className="text-[9px] font-black text-[var(--text-muted)] uppercase tracking-[0.3em]">Payload Matrix</span>
+                            <span className="text-[9px] font-black text-[var(--text-primary)] uppercase tracking-[0.3em]">Payload Matrix</span>
                             <div className="size-1.5 rounded-full bg-amber-500 animate-pulse" />
                         </div>
                         {typeof toolArgs === 'object' && toolArgs !== null ? (
@@ -229,7 +229,7 @@ const ToolApprovalCard = ({
         <div className="mb-8">
             <button
                 onClick={() => setIsExpanded(!isExpanded)}
-                className="group flex items-center gap-4 px-5 py-2 rounded-2xl hover:bg-white/5 transition-all text-left w-full max-w-[420px]"
+                className="group flex items-center gap-4 px-5 py-2 rounded-2xl hover:bg-[var(--bg-surface-subtle)] transition-all text-left w-full max-w-[420px]"
             >
                 <div className={`size-8 rounded-xl flex items-center justify-center border transition-all ${
                     status === 'error' 
