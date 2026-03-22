@@ -4,6 +4,10 @@ langchain
 langchain-openai
 langchain-cohere
 langchain-community
-pinecone-client
+langchain-chroma
+chromadb
+langgraph
+SQLAlchemy
+psycopg2-binary
 python-dotenv
 mcp

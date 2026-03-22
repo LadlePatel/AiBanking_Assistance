@@ -1,7 +1,7 @@
 from flask import Flask, request, jsonify, g, stream_with_context, Response
 from datetime import datetime
 from flask_cors import CORS
-from pinecone_util import index_document_to_pinecone, show_metadata, delete_doc_from_pinecone
+from chroma_util import index_document_to_chroma, show_metadata, delete_doc_from_chroma
 from pydantic_models import QueryInput, QueryResponse, DeleteFileRequest
 from langchain_util import get_rag_chain, stream_rag_chain
 from document_util import get_all_documents, insert_document_record, delete_document_record, get_document_by_filename
@@ -21,6 +21,25 @@ except ImportError:
         "Async route handlers require 'flask[async]'. "
         "Run: pip install 'flask[async]'"
     )
+
+import asyncio
+import threading
+import queue
+import weakref
+
+# Persistent Background Event Loop to handle all MCP and Langchain operations.
+# This eliminates "Event loop is closed" errors caused by Flask tearing down request-local loops.
+_shared_loop = asyncio.new_event_loop()
+def _start_shared_loop(loop):
+    asyncio.set_event_loop(loop)
+    loop.run_forever()
+
+threading.Thread(target=_start_shared_loop, args=(_shared_loop,), daemon=True).start()
+
+def run_async(coro):
+    """Run an async coroutine synchronously on the shared background loop."""
+    future = asyncio.run_coroutine_threadsafe(coro, _shared_loop)
+    return future.result()
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -50,8 +69,10 @@ def _append_tool_call(record: dict) -> None:
     """Append one tool-call record to the current request's list."""
     _get_tool_calls().append(record)
 
-@app.route("/chat", methods=["POST"])
-async def chat():
+@app.route("/chat", methods=["POST", "OPTIONS"])
+def chat():
+    if request.method == 'OPTIONS':
+        return '', 200
     # g._tool_calls is per-request; no reset needed (created fresh each request)
     
     # Cleanup expired approvals
@@ -82,14 +103,16 @@ async def chat():
         _last_denial = None
 
     # Execute chain/agent
-    # Check for specific server selection
+    # Check for specific server selection, but always include banking-mcp
     selected_server_names = data.get("selected_servers", [])
+    if "banking-mcp" not in selected_server_names:
+        selected_server_names.append("banking-mcp")
     
     # Use get_langchain_tools which returns ready-to-use StructuredTool objects
     # Pass filter servers directly
     if selected_server_names:
         # If user selected specific servers, only get tools from those servers
-        all_selected_tools = await mcp_client.get_langchain_tools(filter_servers=selected_server_names)
+        all_selected_tools = run_async(mcp_client.get_langchain_tools(filter_servers=selected_server_names))
         
         # 🔥 INTELLIGENT TOOL SELECTION: Don't initialize all tools
         # Use LLM to select only relevant tools based on user query
@@ -104,7 +127,7 @@ async def chat():
             } for tool in all_selected_tools]
             
             # Use LLM to select relevant tools
-            relevant_tool_dicts = await mcp_client.select_relevant_tools(user_input, tools_for_selection)
+            relevant_tool_dicts = run_async(mcp_client.select_relevant_tools(user_input, tools_for_selection, chat_history=chat_history))
             relevant_tool_names = [t["name"] for t in relevant_tool_dicts]
             
             # Filter selected_tools to only include relevant ones
@@ -160,13 +183,53 @@ async def chat():
                     # For V1 streaming, we might rely on the final "result" event if the chain provides it, 
                     # or we construct it here.
                     
-                    # NOTE: "output" in tool_end from langchain might be the raw return value
+                    # NOTE: "output" in tool_end from langchain might be a ToolMessage object or a list
                     output = tool_data.get("output")
+                    
+                    # 1. Extract content from LangChain message objects
+                    if hasattr(output, 'content'):
+                        output = output.content
+                    
+                    # 2. Handle lists (common in MCP/LangChain)
+                    if isinstance(output, list):
+                        parts = []
+                        for item in output:
+                            if isinstance(item, dict) and item.get("type") == "text":
+                                parts.append(item.get("text", ""))
+                            elif hasattr(item, 'content'):
+                                parts.append(str(item.content))
+                            else:
+                                parts.append(str(item))
+                        output = "\n".join(parts)
+                        
+                    # 3. Fallback for other non-serializable types
+                    if not isinstance(output, (str, dict, list, int, float, bool, type(None))):
+                        output = str(output)
+                        
                     tool_name = tool_data.get("tool")
                     
                     status = "approved"
-                    if isinstance(output, str) and ("Error" in output): status = "error"
-                    if isinstance(output, dict) and output.get("isError"): status = "error"
+                    
+                    # 4. Attempt to parse JSON string for MCP native Tool results
+                    if isinstance(output, str) and output.strip().startswith("{"):
+                        try:
+                            parsed_json = json.loads(output)
+                            if parsed_json.get("isError") is True:
+                                status = "error"
+                            # Extract clean text from MCP 'content' array
+                            content_arr = parsed_json.get("content")
+                            if isinstance(content_arr, list):
+                                texts = [item.get("text", "") for item in content_arr if isinstance(item, dict) and item.get("type") == "text"]
+                                if texts:
+                                    output = "\n".join(texts)
+                        except json.JSONDecodeError:
+                            pass
+                            
+                    # 5. Standard fallback Error checks
+                    if isinstance(output, str) and (output.strip().startswith("Error") or "Exception" in output): 
+                        status = "error"
+                    if isinstance(output, dict) and output.get("isError"): 
+                        status = "error"
                     
                     server_name = tool_name_to_server.get(tool_name, "Unknown")
                     
@@ -198,30 +261,29 @@ async def chat():
             logging.error(f"Streaming error: {e}")
             yield f"data: {json.dumps({'type': 'error', 'error': str(e)})}\n\n"
 
-    # Return Streaming Response
-    # Flask Response expects a sync iterable or generator, but we have an async one.
-    # We need to bridge async generator to sync generator.
-    # We can use a helper or execute it in a sync Loop if needed, but typically with `flask[async]`, 
-    # we can just use `await` inside the view if it wasn't a stream.
-    # For streaming, we need to make sure the generator yields bytes/strings directly.
-    
-    # Simple Async-to-Sync Bridge for Flask Streaming
+    # Queue-based Async-to-Sync Bridge for Flask Streaming using Shared Loop
     def generate_sync():
-        import asyncio
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
+        q = queue.Queue()
         
-        gen = generate()
+        async def exhaust_gen():
+            try:
+                async for chunk in generate():
+                    q.put(chunk)
+            except Exception as e:
+                import traceback
+                traceback.print_exc()
+                q.put(f"data: {json.dumps({'type': 'error', 'error': str(e)})}\n\n")
+            finally:
+                q.put(None)
+                
+        # Schedule the generator on the permanent shared loop
+        asyncio.run_coroutine_threadsafe(exhaust_gen(), _shared_loop)
         
-        try:
-            while True:
-                # Run the next step of the async generator
-                chunk = loop.run_until_complete(gen.__anext__())
-                yield chunk
-        except StopAsyncIteration:
-            pass
-        finally:
-            loop.close()
+        while True:
+            chunk = q.get()
+            if chunk is None:
+                break
+            yield chunk
 
     return Response(generate_sync(), mimetype='text/event-stream')
 
@@ -259,7 +321,7 @@ def index_document():
         file_id = insert_document_record(file.filename)
 
         # Index the document into Pinecone
-        success = index_document_to_pinecone(file_path, file_id)
+        success = index_document_to_chroma(file_path, file_id)
 
         if success:
             return jsonify({"message": f"File {file.filename} has been successfully uploaded and indexed.", "file_id": file_id})
@@ -289,7 +351,7 @@ def delete_document():
         response = DeleteFileRequest(**data)
         
         # Attempt to delete from Pinecone (non-blocking)
-        pinecone_message = delete_doc_from_pinecone(response.file_id)
+        db_message = delete_doc_from_chroma(response.file_id)
         
         # Proceed to delete locally regardless of Pinecone result
         # This triggers "Force Delete" behavior so users aren't stuck
@@ -301,11 +363,11 @@ def delete_document():
             if os.path.exists(file_path):
                 os.remove(file_path)
         
-        if "Error" in pinecone_message:
-            logging.warning(f"Pinecone deletion error for {file_id}: {pinecone_message}")
-            return jsonify({"message": f"Deleted locally, but knowledge base error: {pinecone_message}"}), 200
+        if "Error" in db_message:
+            logging.warning(f"ChromaDB deletion error for {file_id}: {db_message}")
+            return jsonify({"message": f"Deleted locally, but knowledge base error: {db_message}"}), 200
         else:
-            return jsonify({"message": pinecone_message}), 200
+            return jsonify({"message": db_message}), 200
     except Exception as e:
         logging.error(f"Error deleting document: {str(e)}", exc_info=True)
         return jsonify({"error": "An error occurred while deleting the document"}), 500
@@ -337,12 +399,14 @@ def get_mcp_servers():
     return jsonify(servers)
 
 @app.route("/mcp/tools", methods=["GET"])
-async def get_mcp_tools():
-    tools = await mcp_client.list_tools()
+def get_mcp_tools():
+    tools = run_async(mcp_client.list_tools())
     return jsonify(tools)
 
-@app.route("/mcp/connect", methods=["POST"])
-async def connect_mcp_server():
+@app.route("/mcp/connect", methods=["POST", "OPTIONS"])
+def connect_mcp_server():
+    if request.method == 'OPTIONS':
+        return '', 200
     data = request.json
     print(f"DEBUG: Received data: {data}")
     name = data.get("name")
@@ -355,7 +419,7 @@ async def connect_mcp_server():
     if not name or not command:
         return jsonify({"error": "Name and command are required"}), 400
 
-    success, message = await mcp_client.connect_to_server(name, command, args, env)
+    success, message = run_async(mcp_client.connect_to_server(name, command, args, env))
     if success:
         return jsonify({"message": message}), 200
     else:
@@ -384,9 +448,11 @@ def disconnect_mcp_server():
     return jsonify({"message": f"Server {name} disconnected"}), 200
 
 
-@app.route("/tool/approve", methods=["POST"])
-async def approve_tool():
+@app.route("/tool/approve", methods=["POST", "OPTIONS"])
+def approve_tool():
     """Approve a pending tool execution and execute it directly"""
+    if request.method == 'OPTIONS':
+        return '', 200
     
     data = request.json
     approval_id = data.get("approval_id")
@@ -415,12 +481,28 @@ async def approve_tool():
     try:
         # Execute the tool directly with the stored arguments
         print(f"[APPROVAL] Executing tool: {approval_request.tool_name} on {approval_request.server_name}")
-        result = await approval_request.tool_func(**approval_request.arguments)
+        kwargs = dict(approval_request.arguments)
+        kwargs['_bypass_approval'] = True
+        result = run_async(approval_request.tool_func(**kwargs))
         
         # Enhanced error detection for result (same as agent execution path)
         status = "approved"  # Changed from "success" to match ToolApprovalCard expectations
         
-        # Check string outputs
+        # Parse stringified MCP JSON
+        if isinstance(result, str) and result.strip().startswith("{"):
+            try:
+                parsed_json = json.loads(result)
+                if parsed_json.get("isError") is True:
+                    status = "error"
+                content_arr = parsed_json.get("content")
+                if isinstance(content_arr, list):
+                    texts = [item.get("text", "") for item in content_arr if isinstance(item, dict) and item.get("type") == "text"]
+                    if texts:
+                        result = "\n".join(texts)
+            except json.JSONDecodeError:
+                pass
+
+        # Check string outputs (fallback)
         if isinstance(result, str) and (result.startswith("Error calling tool") or "Error:" in result):
              status = "error"
         
@@ -450,7 +532,7 @@ async def approve_tool():
         try:
             llm = get_llm()
             prompt = ChatPromptTemplate.from_template(
-                "You are PersonalGPT.\n\n"
+                "You are an AI Banking Assistant.\n\n"
                 "Summarize the completed tool action.\n\n"
                 "Tool: {tool_name}\n"
                 "Args: {arguments}\n"
@@ -459,7 +541,7 @@ async def approve_tool():
                 "Confirm what happened, show key results. Friendly, short, clear. Max 1 emoji."
             )
             chain = prompt | llm
-            summary_response = await chain.ainvoke({
+            summary_response = chain.invoke({
                 "tool_name": approval_request.tool_name,
                 "arguments": str(approval_request.arguments),
                 "result": str(result)

@@ -477,9 +477,10 @@ class McpClient:
 
 
 
-    async def select_relevant_tools(self, query: str, tools: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    async def select_relevant_tools(self, query: str, tools: List[Dict[str, Any]], chat_history: List[Dict[str, str]] = None) -> List[Dict[str, Any]]:
         """
         Use an LLM to select relevant tools for the query to save tokens.
+        Includes chat history for context.
         """
         if not tools:
             return []
@@ -495,20 +496,34 @@ class McpClient:
             """You are a tool selection assistant. Your goal is to select the most relevant tools for a user's query from the available list.
             Selecting too many tools wastes resources. Select only what is strictly necessary.
             
-            User Query: {query}
+            Context:
+            {history_context}
+            
+            Current User Query: {query}
             
             Available Tools:
             {tool_descriptions}
             
             Return a JSON list of tool names that are relevant. Example: ["tool_a", "tool_b"].
+            If the user is confirming a previous suggestion or asking to proceed, search the context for what tool they are confirming and select that.
             If no tools are relevant, return [].
             """
         )
         
+        history_context = ""
+        if chat_history:
+            # Last 3 messages are usually enough for context
+            context_msgs = chat_history[-3:]
+            history_context = "\n".join([f"{m['role'].capitalize()}: {m['content']}" for m in context_msgs])
+
         chain = prompt | llm | JsonOutputParser()
         
         try:
-            selected_names = await chain.ainvoke({"query": query, "tool_descriptions": tool_descriptions})
+            selected_names = await chain.ainvoke({
+                "query": query, 
+                "history_context": history_context,
+                "tool_descriptions": tool_descriptions
+            })
             relevant_tools = [t for t in tools if t['name'] in selected_names]
             return relevant_tools
         except Exception as e:

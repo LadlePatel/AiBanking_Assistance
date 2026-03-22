@@ -3,7 +3,7 @@ import { IoIosRefreshCircle } from "react-icons/io";
 import { Virtuoso } from "react-virtuoso";
 import { Document, Page, pdfjs } from 'react-pdf';
 import { motion, AnimatePresence } from "framer-motion";
-import { getApiResponse, streamChat, API_URL, listMcpServers, approveTool, denyTool } from "../api";
+import { getApiResponse, streamChat, API_URL, approveTool, denyTool } from "../api";
 import RecSec from "./RecSec";
 import SendSec from "./SendSec";
 import TypingIndicator from "./TypingIndicator";
@@ -48,11 +48,6 @@ const Chatbar = ({
   const pdfWrapperRef = useRef(null);
   const [pdfWidth, setPdfWidth] = useState(null);
 
-  // Server Selection State
-  const [availableServers, setAvailableServers] = useState([]);
-  const [showServerPopup, setShowServerPopup] = useState(false);
-  const [filteredServers, setFilteredServers] = useState([]);
-  const [selectedServers, setSelectedServers] = useState([]); // List of server names
 
   // Approval State
   const [pendingApprovals, setPendingApprovals] = useState({}); // Map of approval_id -> approval_request
@@ -143,7 +138,7 @@ const Chatbar = ({
     if (isNewChat) {
       SetAllMessages([]);
       setSessionId(`session_${Date.now()}`);
-      setSelectedServers([]); // Reset selected servers
+
       // attachedFiles reset handled in App.js
       resetNewChat();
     }
@@ -211,7 +206,7 @@ const Chatbar = ({
   };
 
   const handleKeyDown = (e) => {
-    if (e.key === "Enter" && !e.shiftKey && message.trim() !== "" && !response && !showServerPopup) {
+    if (e.key === "Enter" && !e.shiftKey && message.trim() !== "" && !response) {
       e.preventDefault();
       sendMessage(message);
     }
@@ -367,7 +362,6 @@ const Chatbar = ({
     if (!finalMessage) return;
     SetResponse(true);
     setMessage("");
-    setShowServerPopup(false);
 
     // Reset textarea height
     if (textareaRef.current) {
@@ -413,7 +407,7 @@ const Chatbar = ({
         sessionId: sessionId,
         history: history,
         sourceDocuments: selectedDocsToSend,
-        selectedServers: selectedServers,
+
 
         // Pass signal
         signal: abortController.signal,
@@ -542,46 +536,6 @@ const Chatbar = ({
     // Auto-resize textarea
     e.target.style.height = 'auto';
     e.target.style.height = `${Math.min(e.target.scrollHeight, 200)}px`;
-
-    // Detect @ trigger
-    const lastWord = val.split(' ').pop();
-
-    if (lastWord.startsWith('@')) {
-      // Lazy load servers if not already loaded
-      if (availableServers.length === 0) {
-        const servers = await listMcpServers();
-        // Dedup servers by name just in case
-        const uniqueServers = Array.from(new Map(servers.map(item => [item.name, item])).values());
-
-        setAvailableServers(uniqueServers);
-        // Re-filter immediately after fetching
-        const query = lastWord.slice(1).toLowerCase();
-        const matches = uniqueServers.filter(s => s.name.toLowerCase().includes(query));
-        setFilteredServers(matches);
-        setShowServerPopup(matches.length > 0);
-      } else {
-        const query = lastWord.slice(1).toLowerCase();
-        const matches = availableServers.filter(s => s.name.toLowerCase().includes(query));
-        setFilteredServers(matches);
-        setShowServerPopup(matches.length > 0);
-      }
-    } else {
-      setShowServerPopup(false);
-    }
-  };
-
-  const selectServer = (serverName) => {
-    const words = message.split(' ');
-    // Replace the last word (the trigger)
-    words.pop();
-    const newMessage = [...words, `@${serverName} `].join(' ');
-
-    setMessage(newMessage);
-    setShowServerPopup(false);
-
-    if (!selectedServers.includes(serverName)) {
-      setSelectedServers([...selectedServers, serverName]);
-    }
   };
 
   // --- Render Functions ---
@@ -609,7 +563,7 @@ const Chatbar = ({
             <div className="w-16 h-16 bg-gradient-to-br from-[var(--accent-color)] to-[var(--accent-color-hover)] rounded-2xl flex items-center justify-center mb-6 shadow-lg">
               <span className="material-symbols-rounded text-white" style={{ fontSize: '32px' }}>auto_awesome</span>
             </div>
-            <h3 className="text-2xl font-semibold mb-2 text-[var(--text-primary)]">PersonalGPT</h3>
+            <h3 className="text-2xl font-semibold mb-2 text-[var(--text-primary)]">AI Banking Assistant</h3>
             <p className="text-[var(--text-secondary)] mb-8">Ask me anything...</p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 w-full max-w-2xl px-4 mt-8">
               {questionList.slice(0, 4).map((q, i) => (
@@ -627,26 +581,7 @@ const Chatbar = ({
       <div className="w-full bg-gradient-to-t from-[var(--bg-primary)] via-[var(--bg-primary)] to-transparent pt-2 px-4">
         <div className="max-w-4xl mx-auto relative">
 
-          {/* Server Popup */}
-          {showServerPopup && (
-            <div className="absolute bottom-full left-0 mb-2 w-64 bg-[var(--bg-input)] rounded-xl shadow-2xl border border-[var(--border-medium)] overflow-hidden z-50">
-              <div className="p-2 bg-[var(--bg-secondary)] text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">
-                Select MCP Server
-              </div>
-              <div className="max-h-48 overflow-y-auto custom-scrollbar">
-                {filteredServers.map((server, i) => (
-                  <button
-                    key={i}
-                    onClick={() => selectServer(server.name)}
-                    className="w-full text-left px-4 py-2.5 hover:bg-[var(--bg-user-msg)] text-sm text-[var(--text-primary)] transition-colors flex items-center justify-between"
-                  >
-                    <span className="font-medium">{server.name}</span>
-                    <span className="text-[10px] text-[var(--text-muted)]">{server.command ? 'Local' : 'Remote'}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
+
 
           {/* Main Input Container - ChatGPT Style Grid */}
           <div className="relative bg-[var(--bg-input)] border-2 border-[var(--border-medium)] transition-all p-2 md:p-2.5 grid grid-cols-[auto_1fr_auto] grid-rows-[1fr_auto]" style={{ borderRadius: '28px' }}>
@@ -772,27 +707,7 @@ const Chatbar = ({
                 </div>
               )}
 
-              {/* MCP Server Pills */}
-              {selectedServers.length > 0 && (
-                <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
-                  {selectedServers.map(s => (
-                    <div
-                      key={s}
-                      className="flex items-center gap-1.5 text-xs font-medium text-[var(--accent-color)] bg-[var(--accent-color)]/10 px-3 py-1.5 rounded-full border border-[var(--accent-color)]/20 shrink-0 group"
-                    >
-                      <span className="material-symbols-rounded text-[14px]">dns</span>
-                      <span className="max-w-32 truncate">{s}</span>
-                      <button
-                        onClick={() => setSelectedServers(selectedServers.filter(x => x !== s))}
-                        className="hover:text-[var(--accent-color-hover)] transition-colors"
-                        aria-label={`Remove ${s}`}
-                      >
-                        <span className="material-symbols-rounded text-[14px]">close</span>
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
+
             </div>
           </div>
 
