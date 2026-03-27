@@ -187,6 +187,15 @@ class McpClient:
                          self.servers.append(server_conf)
              except Exception as e:
                  print(f"Error loading MCP config: {e}")
+                 
+        # ALWAYS ON: Force include banking-mcp if missing
+        if not any(s.get("name") == "banking-mcp" for s in self.servers):
+            self.servers.append({
+                "name": "banking-mcp",
+                "command": "python",
+                "args": ["banking_mcp/server.py"],
+                "env": {}
+            })
 
     def save_config(self):
         """Save server configuration to JSON file."""
