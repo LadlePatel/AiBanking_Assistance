@@ -1,0 +1,13 @@
+{
+    "name": "John",
+    "age": 20,
+    "country":{
+        "name": "Pakistan",
+        "city": "Karachi"
+    },
+    "hobbies":[
+        "cricket",
+        "reading",
+        "coding"
+    ]
+}

@@ -32,7 +32,7 @@ COPY banking_mcp/ ./banking_mcp/
 RUN mkdir -p /app/api/uploads
 
 # Expose the port the app runs on
-EXPOSE 5000
+EXPOSE 5001
 
 # Command to run the application (from project root to support relative paths in mcp_config.json)
 CMD ["python3", "api/main.py"]

@@ -158,7 +158,7 @@ def setup_dummy_bank_data() -> str:
         db.commit()
         
         # Create accounts
-        acc1 = Account(user_id=user1.id, account_number="CHK-1001", balance=5000.0)
+        acc1 = Account(user_id=user1.id, account_number="CHK-1001", balance=5001.0)
         acc2 = Account(user_id=user1.id, account_number="SAV-1002", balance=25000.0)
         acc3 = Account(user_id=user2.id, account_number="CHK-2001", balance=1200.0)
         db.add_all([acc1, acc2, acc3])

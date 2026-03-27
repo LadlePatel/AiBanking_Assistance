@@ -90,11 +90,11 @@ If you want to run just the Frontend in a container (e.g., if you are running th
 ```bash
 docker-compose up -d --no-deps ui
 ```
-*Note: This will skip starting the API and databases. Ensure your `REACT_APP_API_URL` in `.env` or `docker-compose.yml` points to your local machine (e.g., `http://host.docker.internal:5000` on Mac/Windows).*
+*Note: This will skip starting the API and databases. Ensure your `REACT_APP_API_URL` in `.env` or `docker-compose.yml` points to your local machine (e.g., `http://host.docker.internal:5001` on Mac/Windows).*
 
 #### 🌐 Access URLs:
 - **Frontend**: [http://localhost:3000](http://localhost:3000)
-- **API (Agent)**: [http://localhost:5000](http://localhost:5000)
+- **API (Agent)**: [http://localhost:5001](http://localhost:5001)
 - **Database (Postgres)**: `localhost:5432`
 - **Vector DB (Chroma)**: [http://localhost:8001](http://localhost:8001)
 
@@ -105,7 +105,7 @@ If you encounter issues during setup:
 
 | Issue | Solution |
 | :--- | :--- |
-| **Port Conflict** | Ensure ports `3000`, `5000`, and `5432` are not being used by local processes. |
+| **Port Conflict** | Ensure ports `3000`, `5001`, and `5432` are not being used by local processes. |
 | **API Key Error** | Double-check that `OPENAI_API_KEY` is correctly set in your `.env` file. |
 | **Database Connection** | If the MCP server fails, ensure `BANKING_DATABASE_URL` in `.env` uses the `postgres` hostname for Docker. |
 | **Rebuild Needed** | Run `docker-compose down -v` and `docker-compose up --build` to clear volumes and rebuild. |
