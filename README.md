@@ -1,135 +1,135 @@
 # AI Banking Assistant 🏦🚀
 
-> A **Next-Gen Autonomous AI Banker** with **Model Context Protocol (MCP)** integration, featuring RAG (Retrieval-Augmented Generation), LangGraph state management, and strict multi-factor authentication.
+> A **Next-Gen Autonomous AI Banker** with **Model Context Protocol (MCP)** integration, featuring RAG (Retrieval-Augmented Generation), LangGraph state management, and human-in-the-loop approval for sensitive operations.
 
-AI Banking Assistant is a sophisticated financial agent built with Python, LangChain, and MCP. It provides an intelligent interface for personal finance, allowing users to check balances, transfer funds, and query banking policies through a secure, natural language chat.
+AI Banking Assistant is a sophisticated financial agent built with Python, LangGraph, and MCP. It provides an intelligent interface for personal finance — check balances, transfer funds, create accounts, and query banking policies through a secure natural language chat.
 
 ---
 
 ## 📖 Key Documentation
-- **[Teaching Guide (Teach.md)](./Teach.md)**: A deep-dive into LangGraph, MCP, and the "Brain" of the system.
-- **[Technical Flow Showcase (Technical_Flow.md)](./Technical_Flow.md)**: See exactly how code executes for RAG and Banking scenarios.
+- **[Teaching Guide (Teach.md)](./Teach.md)**: Live demo script + deep-dive into LangGraph, MCP, and agentic architecture.
+- **[Technical Flow (Technical_Flow.md)](./Technical_Flow.md)**: Exact code paths for every scenario — balance check, account creation, transfers, and more.
+
+---
+
+## 💬 What You Can Do (Demo Walkthrough)
+
+Try these questions in order to explore the full system:
+
+| Step | You Say | What Happens |
+| :---: | :--- | :--- |
+| 1 | *"What can you do?"* | Agent describes its capabilities without tools |
+| 2 | *"What's my balance?"* (no tools) | Tells you to connect `banking-mcp` — no hallucination |
+| 3 | *"Show balance for john123"* → wrong creds | DB lookup fails, error surfaced cleanly |
+| 4 | *"Create account john123, pass456, $500"* | Approval card → you click Approve → account created |
+| 5 | *"What's my balance for john123?"* | Returns real DB balance after authentication |
 
 ---
 
 ## 🛠️ Technology Stack
 
 ### Core AI Engine
-- **LangGraph**: The brain of the assistant. It orchestrates the agentic workflow, managing state, loops, and tool-calling logic.
-- **LangChain**: The foundation. It provides the components (LLMs, Prompts, Tools) that LangGraph uses to execute tasks.
-- **MCP (Model Context Protocol)**: Powering the banking backend. All financial operations are handled as standardized MCP tools.
-- **RAG (Retrieval-Augmented Generation)**: Uses **ChromaDB** to store and query banking documentation, NPCs, and FAQs.
+- **LangGraph**: Orchestrates the agentic workflow — state, loops, and tool-calling logic.
+- **LangChain**: Provides components (LLMs, Prompts, Tools) that LangGraph uses.
+- **MCP (Model Context Protocol)**: All financial operations are standardized MCP tools.
+- **RAG (Retrieval-Augmented Generation)**: Uses **ChromaDB** to answer policy/FAQ questions.
 
 ### Backend
-- **Framework**: FastAPI / Flask for the main agent API.
-- **Database**: **PostgreSQL** (Docker-based) for structured banking records (Users, Accounts, Transactions).
-- **Communication**: Model Context Protocol (MCP) for decoupled tool execution.
+- **Framework**: Flask (async-capable via `flask[async]`)
+- **Database**: **PostgreSQL** (Docker-based) — Users, Accounts, Transactions
+- **Vector DB**: ChromaDB for document embeddings
+- **Reranking**: Cohere Rerank for RAG quality
 
 ### Frontend
-- **Framework**: React 18 + Vite.
-- **UI/UX**: Premium design with TailwindCSS, Framer Motion animations, and real-time streaming updates.
+- **Framework**: React 18 + Vite
+- **UI/UX**: TailwindCSS, Framer Motion, real-time SSE streaming
 
 ---
 
 ## 🏗️ Architecture Overview
 
-The system is designed as a modular ecosystem:
+```
+React UI (Vite)
+     ↕  SSE / REST
+Flask API (main.py)
+     ↕
+LangGraph ReAct Agent (agent_engine.py)
+     ↕                        ↕
+ChromaDB RAG           MCP Client (mcp_client.py)
+(chroma_util.py)             ↕
+                    Banking MCP Server (banking_mcp/)
+                             ↕
+                        PostgreSQL DB
+```
 
-1.  **The Agent Engine (`api/agent_engine.py`)**: The brain. Built with **LangGraph**, it uses a stateful ReAct agent to decide when to look up documentation (RAG) vs. when to execute a financial transaction (MCP).
-2.  **Banking MCP Server (`banking_mcp/server.py`)**: The engine. A dedicated server that interfaces directly with the PostgreSQL database. It exposes secure tools like `get_user_accounts` and `create_transaction`.
-3.  **Authentication Gate**: A strict password-based entry system enforced at the tool level, bypassing standard LLM safety refusals via a custom `SAFETY OVERRIDE` protocol for simulated environments.
-4.  **Knowledge Base**: Documents are processed, chunked, and stored in ChromaDB, enabling the assistant to answer "How do I..." questions accurately.
+1. **Agent Engine** (`api/agent_engine.py`): LangGraph ReAct agent — decides when to use RAG vs. MCP tools.
+2. **Banking MCP Server** (`banking_mcp/server.py`): Isolated tool server with PostgreSQL access.
+3. **Approval Handler** (`api/approval_handler.py`): Human-in-the-loop gate for financial operations.
+4. **Knowledge Base**: Documents chunked and stored in ChromaDB for FAQ/policy queries.
 
 ---
 
 ## 🚀 Quick Start
 
-### 1. Prerequisites
+### Prerequisites
 - Docker & Docker Compose
 - OpenAI API Key
+- Cohere API Key (for Reranking)
 
-### 2. Full Stack Build & Launch (Docker - Recommended)
+### Full Stack — Docker (Recommended)
 
-The easiest way to run the entire ecosystem (Frontend, API, Postgres, ChromaDB) is via Docker Compose.
-
-#### ⚙️ Setup
 ```bash
-# 1. Configure environment (Add your OpenAI API Key)
+# 1. Configure environment
 cp .env.example .env
+# Edit .env → add OPENAI_API_KEY and COHERE_API_KEY
+
+# 2. Build and start all services
+docker-compose up --build -d
 ```
 
-#### 🏗️ How to Build
-To build the Docker images for the first time or after any code changes:
-```bash
-docker-compose build
-```
+#### Service URLs
+| Service | URL |
+| :--- | :--- |
+| **Frontend** | http://localhost:3000 |
+| **API (Agent)** | http://localhost:8000 |
+| **Database (Postgres)** | localhost:5432 |
+| **Vector DB (Chroma)** | http://localhost:8001 |
 
-#### 🚀 How to Run
-To start all services in the background:
+#### Stop / Clean Up
 ```bash
-docker-compose up -d
-```
-*Tip: You can build and run in one step: `docker-compose up --build -d`*
-
-#### 🛑 How to Stop
-To stop all containers and keep your data:
-```bash
+# Stop, keep data
 docker-compose stop
-```
-To stop and remove containers (data persists in volumes):
-```bash
+
+# Stop and remove containers (data persists in volumes)
 docker-compose down
-```
-To stop and remove containers **AND** delete all database data (CAUTION!):
-```bash
+
+# Full reset — removes volumes too (CAUTION: deletes all DB data)
 docker-compose down -v
 ```
 
-#### 🖥️ How to run ONLY the UI?
-If you want to run just the Frontend in a container (e.g., if you are running the API locally):
-```bash
-docker-compose up -d --no-deps ui
-```
-*Note: This will skip starting the API and databases. Ensure your `REACT_APP_API_URL` in `.env` or `docker-compose.yml` points to your local machine (e.g., `http://host.docker.internal:5001` on Mac/Windows).*
+---
 
-#### 🌐 Access URLs:
-- **Frontend**: [http://localhost:3000](http://localhost:3000)
-- **API (Agent)**: [http://localhost:5001](http://localhost:5001)
-- **Database (Postgres)**: `localhost:5432`
-- **Vector DB (Chroma)**: [http://localhost:8001](http://localhost:8001)
+### Manual Development Setup
+
+```bash
+# Backend
+pip install -r requirements.txt
+python api/main.py
+
+# Frontend (separate terminal)
+cd UI && npm install && npm run dev
+```
 
 ---
 
-### 3. Troubleshooting Docker
-If you encounter issues during setup:
+## 🔧 Troubleshooting
 
 | Issue | Solution |
 | :--- | :--- |
-| **Port Conflict** | Ensure ports `3000`, `5001`, and `5432` are not being used by local processes. |
-| **API Key Error** | Double-check that `OPENAI_API_KEY` is correctly set in your `.env` file. |
-| **Database Connection** | If the MCP server fails, ensure `BANKING_DATABASE_URL` in `.env` uses the `postgres` hostname for Docker. |
-| **Rebuild Needed** | Run `docker-compose down -v` and `docker-compose up --build` to clear volumes and rebuild. |
+| **Port Conflict** | Ensure ports `3000`, `8000`, `5432` are free |
+| **API Key Error** | Check `OPENAI_API_KEY` and `COHERE_API_KEY` in `.env` |
+| **Database Connection** | Use `postgres` as hostname in Docker. Use `localhost` for manual setup. |
+| **Rebuild Needed** | `docker-compose down -v && docker-compose up --build` |
+| **Balance Hallucination** | Ensure `banking-mcp` is connected in the MCP panel (right sidebar) |
 
 ---
-
-### 3. Manual Development Setup (Optional)
-
-If you prefer to run services individually without Docker:
-
-#### Backend
-```bash
-# Install dependencies
-pip install -r requirements.txt
-
-# Launch the Agent API
-python api/main.py
-```
-
-#### Frontend
-```bash
-cd UI && npm install && npm start
-```
----
-
-## 📞 Support & Contributions
-Built with ❤️ @SayeedAjmal.
