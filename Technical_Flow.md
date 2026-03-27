@@ -1,125 +1,175 @@
 # AI Banking Assistant: Technical Flow Showcase 🏗️🤖
 
-This document maps specific user interactions to the exact code paths and files they trigger. A complete "Under-the-Hood" reference for understanding how each scenario executes.
+Maps every user interaction to its exact code path. A complete "Under the Hood" reference.
 
 ---
 
-## 📽️ Scenario 1: "What can you do?" (No-Tool Chat Mode)
+## 📽️ Scenario 1: "What can you do?" — Simple Chat Mode
 
 **User Input:** *"Hi, what can you do?"*
 
-### 🛤️ Execution Path:
-1. **Entry Point**: `api/main.py` → `/chat` POST route.
-2. **Tool Selection**: `banking-mcp` is appended by default, but if no MCP server is connected, `selected_tools = []`.
-3. **Mode Selection** (`api/agent_engine.py`): No docs + No tools → **Simple Chat Mode**.
-4. **Prompt**: The `stream_rag_chain` function builds a `ChatPromptTemplate` with the banking-scoped system prompt.
-5. **LLM Response**: Streams tokens directly — describes balance, transfers, account creation as capabilities.
+### 🛤️ Execution Path
 
-**Key Behavior**: The agent does NOT hallucinate. It only describes capabilities it actually has.
+1. **Entry**: `api/main.py` → `/chat` POST route.
+2. **Tool Selection**: `mcp_client.select_relevant_tools()` returns `[]` (no tools connected or relevant).
+3. **Mode Decision** (`api/agent_engine.py → stream_rag_chain()`):
+   ```python
+   if not documents and not tools:   # ← Simple Chat branch
+       prompt = ChatPromptTemplate.from_messages([...])
+       runnable = prompt | llm
+   ```
+4. **System Prompt**: Banking-scoped prompt with `CRITICAL — NO LIVE BANKING TOOLS ACTIVE` section.
+5. **Streaming**: `runnable.astream_events({"input": query, "chat_history": ...})` → yields `on_chat_model_stream` events → SSE tokens to frontend.
 
-**Core File**: `api/agent_engine.py` → `stream_rag_chain()`, lines ~218–245
+**Core Code**: `agent_engine.py` → `stream_rag_chain()`, lines ~219–258
 
 ---
 
-## 📽️ Scenario 2: "What's my balance?" (Tools NOT Connected)
+## 📽️ Scenario 2: "What's my balance?" — Tools NOT Connected
 
 **User Input:** *"What's my balance?"*
 
-### 🛤️ Execution Path:
-1. **Entry Point**: `api/main.py` → `/chat`.
-2. **Tool Selection**: `selected_tools = []` (banking-mcp not connected).
-3. **Mode**: Simple Chat Mode (no tools, no docs).
-4. **Prompt Rule Fires**: The system prompt contains the `CRITICAL — NO LIVE BANKING TOOLS ACTIVE` section.
-5. **LLM Response**: Explains the tools are not connected and instructs the user to connect `banking-mcp`.
+### 🛤️ Execution Path
 
-**Key Behavior**: No fabricated balances. No "go to your bank" deflection. Clear, actionable guidance.
+1. **Entry**: `api/main.py` → `/chat`.
+2. **Tool Selection**: Returns `[]`.
+3. **Mode**: Simple Chat (same branch as Scenario 1).
+4. **Prompt Rule**:
+   ```
+   NEVER make up any numbers, balances, or account data.
+   ALWAYS explain that the banking-mcp tools are not active and guide them to connect.
+   Example: "To check your balance I need access to the Banking MCP tools..."
+   ```
+5. **LLM Response**: Instructs user to connect `banking-mcp`. No fabricated data.
 
-**Core File**: `api/agent_engine.py` → `agent_system_prompt` Simple Chat Mode section
+**Key Behavior**: No hallucination enforced by structure, not just hope.
+
+**Core Code**: `agent_engine.py` → Simple Chat system prompt, lines ~228–237
 
 ---
 
-## 📽️ Scenario 3: "Show my balance" → User Not Found (MCP + DB Flow)
+## 📽️ Scenario 3: "Show my balance" → Wrong Credentials (Agent Mode + MCP + DB)
 
-**User Input:** *"Show me my balance for user john123"*
-**AI asks:** *"Please provide your password."*
+**User Input:** *"Show me my balance for user john123"*  
+**AI asks:** *"Please provide your password."*  
 **User replies:** *"wrongpass"*
 
-### 🛤️ Execution Path:
-1. **Entry Point**: `api/main.py` → `/chat`.
-2. **Tool Selection**: `get_user_accounts` is selected by the intelligent tool selector.
-3. **Agent Mode** (`api/agent_engine.py`): LangGraph ReAct agent runs.
-4. **Slot Filling**: Agent extracts `username=john123`, `password=wrongpass` from chat history.
-5. **Approval Card** (if configured): User sees an approval prompt for the tool call.
-6. **MCP Tool Call**: Goes through `api/mcp_client.py` → `banking_mcp/server.py`.
-7. **DB Lookup** (`banking_mcp/server.py`):
-   - Runs `SELECT * FROM users WHERE LOWER(username) = LOWER('john123')`.
-   - Password hash check (SHA-256) → fails.
+### 🛤️ Execution Path
+
+1. **Entry**: `api/main.py` → `/chat`.
+2. **Intelligent Tool Selector** (`mcp_client.select_relevant_tools()`):
+   - LLM reads tool descriptions, selects `get_user_accounts`.
+3. **Mode Decision**: `tools` list is non-empty → **Agent Mode**:
+   ```python
+   elif tools:
+       is_agent = True
+       runnable = create_react_agent(llm, tools=valid_tools, prompt=agent_system_prompt)
+   ```
+4. **Message History Build**:
+   ```python
+   messages = []
+   for msg in chat_history:
+       messages.append(HumanMessage(...) or AIMessage(...))
+   messages.append(HumanMessage(content=query))
+   ```
+5. **LangGraph ReAct Loop** (`astream_events` with `version="v2"`, `recursion_limit=50`):
+   - Agent reasons → generates tool call → `on_tool_start` event yielded to UI.
+6. **Approval Check** (`mcp_client._create_tool_wrapper()`):
+   - `get_user_accounts` does NOT contain destructive keywords → `requires_approval = False`.
+   - `tool_func_raw()` called directly.
+7. **MCP Call**: `mcp_client.call_tool("banking-mcp", "get_user_accounts", {"username": "john123", "password": "wrongpass"})`.
+8. **Session Lookup**: `ensure_session("banking-mcp")` → returns existing `ClientSession` (already alive).
+9. **DB Lookup** (`banking_mcp/server.py`):
+   - Query: `SELECT * FROM users WHERE LOWER(username) = 'john123'`
+   - SHA-256 hash check → **fails**.
    - Returns: `{"isError": true, "content": [{"text": "Invalid credentials or user not found."}]}`
-8. **Error Surfaced**: Agent reads `isError=true` and informs user credentials are wrong.
+10. **Tool End Event**: `on_tool_end` yielded → UI shows tool result card.
+11. **Agent Final Response**: Agent reads `isError=true`, generates error message, streamed as tokens.
 
 **Core Files**:
-- `api/agent_engine.py` (ReAct agent)
-- `api/mcp_client.py` (MCP transport)
-- `banking_mcp/server.py` (DB logic + error response)
+- `api/agent_engine.py` → Agent Mode, lines ~260–353
+- `api/mcp_client.py` → `ensure_session()`, `call_tool()`, `_create_tool_wrapper()`
+- `banking_mcp/server.py` → `get_user_accounts` tool
 
 ---
 
-## 📽️ Scenario 4: Create a New Account
+## 📽️ Scenario 4: Create a New Account (Approval Gate)
 
 **User Input:** *"Create an account for username: john123, password: pass456, initial deposit $500"*
 
-### 🛤️ Execution Path:
-1. **Entry Point**: `api/main.py` → `/chat`.
-2. **Tool Selected**: `create_user_account` by the LLM tool selector.
-3. **Agent**: Extracts all arguments — `username`, `password`, `account_number` (auto-generated if not given), `initial_deposit`.
-4. **Approval Gate** (`api/approval_tools.py`):
-   - `ApprovalRequiredException` is raised.
-   - `api/main.py` catches it and yields `{"type": "approval_required", ...}` to the frontend.
-   - The React UI renders a **ToolApprovalCard** with [Approve] / [Deny] buttons.
-5. **User Approves**: Frontend POSTs to `/tool/approve` with `approval_id`.
-6. **Direct Execution** (`api/main.py` → `approve_tool()`):
-   - Calls `create_user_account(username, password, account_number, initial_deposit, _bypass_approval=True)`.
-   - MCP server executes `INSERT INTO users ...` + `INSERT INTO accounts ...`.
-7. **LLM Summary**: `api/main.py` prompts the LLM to summarize the result in professional Markdown.
-8. **Final Response**: Streamed back to frontend.
+### 🛤️ Execution Path
+
+1. **Entry**: `api/main.py` → `/chat`.
+2. **Tool Selected**: `create_user_account` by `select_relevant_tools()`.
+3. **Agent Mode**: LangGraph extracts slots — `username`, `password`, `initial_deposit`.
+4. **Approval Gate** (`mcp_client._create_tool_wrapper()`):
+   ```python
+   destructive_keywords = ['create', 'delete', 'update', 'send', ...]
+   requires_approval = any(keyword in name.lower() for keyword in destructive_keywords)
+   # 'create_user_account' → requires_approval = True
+   ```
+   ```python
+   async def tool_func(**kwargs):
+       approval = approval_manager.create_approval_request(...)
+       raise ApprovalRequiredException(approval.to_dict())
+   ```
+5. **Exception Caught** (`agent_engine.py → stream_rag_chain()`):
+   ```python
+   except Exception as e:
+       if hasattr(e, "approval_request"):
+           yield {"type": "approval_required", "approval_request": e.approval_request}
+   ```
+6. **Frontend**: React renders `ToolApprovalCard` with [Approve] / [Deny] buttons.
+7. **User Approves**: Frontend POSTs to `api/main.py → /tool/approve`.
+8. **Direct Execution**: `main.py` calls `tool_func_raw(**stored_kwargs)` directly (bypasses approval gate).
+9. **MCP Executes**: `banking_mcp/server.py → create_user_account()`:
+   - `INSERT INTO users ...`
+   - `INSERT INTO accounts ...` (with initial deposit)
+10. **LLM Summary**: `main.py` prompts LLM to format the tool result in Markdown.
+11. **Streamed Response**: Final Markdown streamed via SSE to frontend.
 
 **Core Files**:
-- `api/approval_tools.py` (exception raising)
-- `api/approval_handler.py` (pending approvals store)
+- `api/mcp_client.py` → `_create_tool_wrapper()`, lines ~553–687
+- `api/approval_handler.py` → `approval_manager.create_approval_request()`
+- `api/approval_tools.py` → `ApprovalRequiredException`
 - `api/main.py` → `/tool/approve` route
 - `banking_mcp/server.py` → `create_user_account` tool
 
 ---
 
-## 📽️ Scenario 5: Check Balance (Full Happy Path)
+## 📽️ Scenario 5: Check Balance — Full Happy Path
 
-**User Input:** *"What's my balance for john123?"*
-**AI asks:** *"Please provide your password for john123."*
+**User Input:** *"What's my balance for john123?"*  
+**AI asks:** *"Please provide your password for john123."*  
 **User replies:** *"pass456"*
 
-### 🛤️ Execution Path:
-1. **Entry Point**: `api/main.py` → `/chat`.
-2. **Intelligent Tool Selector**: LLM picks `get_user_accounts` as most relevant to "balance".
-3. **LangGraph Agent**: Builds message history → `get_user_accounts(username="john123", password="pass456")`.
-4. **MCP Call**: `api/mcp_client.py` dispatches to `banking_mcp/server.py`.
-5. **DB Query**:
-   - `SELECT * FROM users WHERE LOWER(username) = 'john123'` → found.
-   - Password hash verified ✅.
-   - `SELECT * FROM accounts WHERE user_id = ...` → returns account rows.
-6. **Result**: `{"content": [{"text": "Account 4892-7731 | Balance: $500.00"}]}`
-7. **Token Streaming**: LangGraph agent receives tool result, generates response tokens, streamed via SSE.
-8. **Final Response**:
+### 🛤️ Execution Path
 
+1. **Entry**: `api/main.py` → `/chat`.
+2. **Tool Selection**: `get_user_accounts` selected.
+3. **Agent Mode**: LangGraph builds messages from `chat_history` + new `HumanMessage`.
+4. **Slot Filling**: Agent extracts `username=john123`, `password=pass456` from conversation context.
+5. **Tool Wrapper**: `requires_approval = False` for `get_user_accounts` → executes immediately.
+6. **Schema Adapter**: `schema_adapter.apply_llm_patches()` normalizes args if needed. `schema_adapter.reconstruct_for_server()` converts back to native format.
+7. **MCP Session**: `ensure_session("banking-mcp")` fast-paths (session already alive).
+8. **DB Query** (`banking_mcp/server.py`):
+   - `SELECT * FROM users WHERE LOWER(username) = 'john123'` → found.
+   - SHA-256 hash check ✅.
+   - `SELECT * FROM accounts WHERE user_id = ...` → returns account rows.
+9. **Tool Result**: `{"content": [{"text": "Account 4892-7731 | Balance: $500.00"}]}`
+10. **Streaming**: LangGraph agent receives result, generates response tokens → `on_chat_model_stream` events → SSE.
+
+**Final Response:**
 > Here's your account summary for **john123** 🏦:
 > | Account | Balance |
 > |---------|---------|
 > | 4892-7731 | $500.00 |
 
 **Core Files**:
-- `api/agent_engine.py` (LangGraph ReAct orchestration)
-- `api/mcp_client.py` (MCP transport layer)
-- `banking_mcp/server.py` (SQL logic, hash verification)
-- `banking_mcp/models.py` (SQLAlchemy schema: `User`, `Account`, `Transaction`)
+- `api/agent_engine.py` → Agent Mode streaming loop, lines ~392–427
+- `api/mcp_client.py` → `_create_tool_wrapper()`, `call_tool()`, `ensure_session()`
+- `banking_mcp/server.py` → SQL logic + hash verification
+- `banking_mcp/models.py` → SQLAlchemy: `User`, `Account`, `Transaction`
 
 ---
 
@@ -127,13 +177,14 @@ This document maps specific user interactions to the exact code paths and files 
 
 | Layer | Responsibility | Key Files |
 | :--- | :--- | :--- |
-| **UI** | Premium Interface & Streaming | `UI/src/App.jsx` |
-| **Gateway** | API Routing, SSE Streaming | `api/main.py` |
-| **Brain** | LangGraph ReAct Agent, Tool Selection | `api/agent_engine.py` |
+| **UI** | Premium Interface & SSE Streaming | `UI/src/App.jsx` |
+| **Gateway** | API Routing, SSE, Approval Endpoints | `api/main.py` |
+| **Brain** | Three-Mode Router + LangGraph ReAct | `api/agent_engine.py` |
 | **Approval** | Human-in-the-Loop Gate | `api/approval_tools.py`, `api/approval_handler.py` |
 | **Knowledge** | Policy & Documentation RAG | `api/chroma_util.py` |
-| **MCP Transport** | Tool Discovery & Dispatch | `api/mcp_client.py` |
-| **Banking Tools** | Secure DB Operations (MCP) | `banking_mcp/server.py` |
+| **MCP Transport** | Session Mgmt, Caching, Auth Detection, Schema Adapter, Tool Wrapping | `api/mcp_client.py` |
+| **Schema Normalization** | LLM-friendly patches + server-native reconstruction | `api/schema_adapter.py` |
+| **Banking Tools** | Secure DB Operations (MCP over stdio) | `banking_mcp/server.py` |
 | **Storage** | Structured Transaction Data | `banking_mcp/database.py`, `banking_mcp/models.py` |
 
 ---
@@ -145,19 +196,33 @@ User types message
        ↓
 api/main.py /chat
        ↓
-Intelligent Tool Selector (LLM picks relevant tools)
+mcp_client.select_relevant_tools()  ← LLM picks only necessary tools
        ↓
-stream_rag_chain() in agent_engine.py
+agent_engine.stream_rag_chain()
        ↓
-LangGraph ReAct Agent (thinks → picks tool → calls tool)
+Mode Router:
+  ├─ No tools, no docs  → Simple Chat (ChatPromptTemplate | LLM)
+  ├─ Tools present      → Agent Mode (create_react_agent / LangGraph ReAct)
+  └─ Docs only          → RAG Mode (history-aware retriever + Cohere rerank)
        ↓
-[Approval Gate if needed] → frontend shows Approve/Deny
+[Agent Mode: ReAct Loop]
+  Think → Pick Tool → Call Tool → Observe → Repeat (up to recursion_limit=50)
        ↓
-MCP Client → Banking MCP Server → PostgreSQL
+[Approval Gate if destructive]
+  → raises ApprovalRequiredException
+  → frontend shows Approve/Deny card
+  → /tool/approve → direct execution
        ↓
-Tool Result returned to Agent
+mcp_client.call_tool()
+  → ensure_session() (persistent asyncio Task)
+  → schema_adapter.reconstruct_for_server()
+  → ClientSession.call_tool() over stdio
        ↓
-Agent generates final response tokens (streamed to UI via SSE)
+Banking MCP Server → PostgreSQL
+       ↓
+Tool result → Agent generates response tokens
+       ↓
+on_chat_model_stream events → SSE → React UI
 ```
 
 ---

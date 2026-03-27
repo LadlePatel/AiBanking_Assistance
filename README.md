@@ -1,11 +1,10 @@
 # AI Banking Assistant 🏦🚀
 
-> A **Next-Gen Autonomous AI Banker** with **Model Context Protocol (MCP)** integration, featuring RAG (Retrieval-Augmented Generation), LangGraph state management, and human-in-the-loop approval for sensitive operations.
+> A **Next-Gen Autonomous AI Banker** with **Model Context Protocol (MCP)** integration, featuring RAG (Retrieval-Augmented Generation), LangGraph ReAct orchestration, intelligent tool selection, and human-in-the-loop approval for sensitive financial operations.
 
-AI Banking Assistant is a sophisticated financial agent built with Python, LangGraph, and MCP. It provides an intelligent interface for personal finance — check balances, transfer funds, create accounts, and query banking policies through a secure natural language chat.
+<img src="mcp_banking_flow_diagram_1774628653137.png">
 
 ---
-
 ## 📖 Key Documentation
 - **[Teaching Guide (Teach.md)](./Teach.md)**: Live demo script + deep-dive into LangGraph, MCP, and agentic architecture.
 - **[Technical Flow (Technical_Flow.md)](./Technical_Flow.md)**: Exact code paths for every scenario — balance check, account creation, transfers, and more.
@@ -14,31 +13,44 @@ AI Banking Assistant is a sophisticated financial agent built with Python, LangG
 
 ## 💬 What You Can Do (Demo Walkthrough)
 
-Try these questions in order to explore the full system:
-
 | Step | You Say | What Happens |
 | :---: | :--- | :--- |
-| 1 | *"What can you do?"* | Agent describes its capabilities without tools |
-| 2 | *"What's my balance?"* (no tools) | Tells you to connect `banking-mcp` — no hallucination |
-| 3 | *"Show balance for john123"* → wrong creds | DB lookup fails, error surfaced cleanly |
-| 4 | *"Create account john123, pass456, $500"* | Approval card → you click Approve → account created |
-| 5 | *"What's my balance for john123?"* | Returns real DB balance after authentication |
+| 1 | *"What can you do?"* | Simple Chat Mode — agent describes capabilities, uses banking-scoped system prompt |
+| 2 | *"What's my balance?"* (no tools) | Explains `banking-mcp` isn't connected — zero hallucination, zero fabrication |
+| 3 | *"Show balance for john123"* → wrong creds | MCP → DB lookup fails, clean error surfaced by agent |
+| 4 | *"Create account john123, pass456, $500"* | Approval card shown → you click Approve → account created in PostgreSQL |
+| 5 | *"What's my balance for john123?"* | Agent slot-fills password, calls `get_user_accounts` → returns real DB balance |
 
 ---
 
 ## 🛠️ Technology Stack
 
 ### Core AI Engine
-- **LangGraph**: Orchestrates the agentic workflow — state, loops, and tool-calling logic.
-- **LangChain**: Provides components (LLMs, Prompts, Tools) that LangGraph uses.
-- **MCP (Model Context Protocol)**: All financial operations are standardized MCP tools.
-- **RAG (Retrieval-Augmented Generation)**: Uses **ChromaDB** to answer policy/FAQ questions.
+- **LangGraph** (`langgraph.prebuilt.create_react_agent`): Orchestrates the ReAct loop — think → tool call → observe → repeat.
+- **LangChain**: Provides `ChatPromptTemplate`, `MessagesPlaceholder`, `StructuredTool`, and chain primitives used by `agent_engine.py`.
+- **MCP (Model Context Protocol)**: All banking operations are MCP tools discovered dynamically at runtime via `mcp_client.py`.
+- **RAG (Retrieval-Augmented Generation)**: ChromaDB + Cohere Rerank for answering policy/FAQ questions from uploaded documents.
+
+### Agent Modes (in `agent_engine.py → stream_rag_chain`)
+| Condition | Mode |
+| :--- | :--- |
+| No tools, no docs | **Simple Chat** — banking-scoped prompt, no hallucination directive |
+| Tools present | **Agent Mode** — LangGraph ReAct, MCP tools as primary execution layer |
+| Docs only | **RAG Mode** — history-aware retriever + Cohere reranking |
+
+### MCP Client (`mcp_client.py`)
+- **Persistent sessions** via `asyncio.Task` + `asyncio.Event` for each server.
+- **Per-server locking** (`asyncio.Lock`) prevents connection race conditions.
+- **Tool caching** (5-minute TTL) avoids redundant `list_tools` calls.
+- **OAuth / Auth-URL detection** via `auth_aware_stdio_client` — captures stderr to intercept auth redirects.
+- **`schema_adapter`**: Config-driven JSON Schema patching and server-native argument reconstruction (replaces hard-coded schema hacks).
+- **Approval gate**: Tools with destructive keywords (`create`, `delete`, `update`, `send`, etc.) raise `ApprovalRequiredException` before execution.
 
 ### Backend
-- **Framework**: Flask (async-capable via `flask[async]`)
-- **Database**: **PostgreSQL** (Docker-based) — Users, Accounts, Transactions
-- **Vector DB**: ChromaDB for document embeddings
-- **Reranking**: Cohere Rerank for RAG quality
+- **Framework**: Flask (async, `flask[async]`)
+- **Database**: PostgreSQL (Docker) — Users, Accounts, Transactions
+- **Vector DB**: ChromaDB — document chunk storage for RAG
+- **Reranking**: Cohere Rerank (`rerank-multilingual-v3.0`)
 
 ### Frontend
 - **Framework**: React 18 + Vite
@@ -53,19 +65,22 @@ React UI (Vite)
      ↕  SSE / REST
 Flask API (main.py)
      ↕
-LangGraph ReAct Agent (agent_engine.py)
-     ↕                        ↕
-ChromaDB RAG           MCP Client (mcp_client.py)
-(chroma_util.py)             ↕
-                    Banking MCP Server (banking_mcp/)
-                             ↕
-                        PostgreSQL DB
+stream_rag_chain() in agent_engine.py
+     ↕                              ↕
+ChromaDB RAG (chroma_util.py)    MCP Client (mcp_client.py)
+                                       ↕
+                               Banking MCP Server (banking_mcp/)
+                                       ↕
+                                  PostgreSQL DB
 ```
 
-1. **Agent Engine** (`api/agent_engine.py`): LangGraph ReAct agent — decides when to use RAG vs. MCP tools.
-2. **Banking MCP Server** (`banking_mcp/server.py`): Isolated tool server with PostgreSQL access.
-3. **Approval Handler** (`api/approval_handler.py`): Human-in-the-loop gate for financial operations.
-4. **Knowledge Base**: Documents chunked and stored in ChromaDB for FAQ/policy queries.
+| File | Responsibility |
+| :--- | :--- |
+| `api/agent_engine.py` | Three-mode router: Simple Chat / Agent (LangGraph ReAct) / RAG. Streams events via `astream_events`. |
+| `api/mcp_client.py` | MCP lifecycle management — sessions, caching, auth detection, tool wrapping, approval gate. |
+| `api/approval_handler.py` | In-memory pending approval store with timeout. |
+| `api/schema_adapter.py` | Config-driven schema patches for LLM compatibility. |
+| `banking_mcp/server.py` | Isolated banking tool server exposing MCP tools over stdio. |
 
 ---
 
@@ -97,14 +112,9 @@ docker-compose up --build -d
 
 #### Stop / Clean Up
 ```bash
-# Stop, keep data
-docker-compose stop
-
-# Stop and remove containers (data persists in volumes)
-docker-compose down
-
-# Full reset — removes volumes too (CAUTION: deletes all DB data)
-docker-compose down -v
+docker-compose stop               # Stop, keep data
+docker-compose down               # Stop + remove containers
+docker-compose down -v            # Full reset (deletes DB data)
 ```
 
 ---
@@ -130,6 +140,8 @@ cd UI && npm install && npm run dev
 | **API Key Error** | Check `OPENAI_API_KEY` and `COHERE_API_KEY` in `.env` |
 | **Database Connection** | Use `postgres` as hostname in Docker. Use `localhost` for manual setup. |
 | **Rebuild Needed** | `docker-compose down -v && docker-compose up --build` |
-| **Balance Hallucination** | Ensure `banking-mcp` is connected in the MCP panel (right sidebar) |
+| **Balance Hallucination** | Ensure `banking-mcp` is connected — if no tools are loaded, the Simple Chat system prompt explicitly blocks hallucination |
+| **MCP Auth Required** | Check terminal logs — `auth_aware_stdio_client` will print the OAuth URL |
+| **Tool Cache Stale** | Cache TTL is 5 min. Call `/mcp/invalidate-cache` or restart the backend to force refresh |
 
 ---
