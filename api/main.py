@@ -104,9 +104,7 @@ def chat():
 
     # Execute chain/agent
     # Check for specific server selection, but always include banking-mcp
-    selected_server_names = data.get("selected_servers", [])
-    if "banking-mcp" not in selected_server_names:
-        selected_server_names.append("banking-mcp")
+    selected_server_names = ["banking-mcp"]
     
     # Use get_langchain_tools which returns ready-to-use StructuredTool objects
     # Pass filter servers directly
@@ -114,7 +112,6 @@ def chat():
         # If user selected specific servers, only get tools from those servers
         all_selected_tools = run_async(mcp_client.get_langchain_tools(filter_servers=selected_server_names))
         
-        # 🔥 INTELLIGENT TOOL SELECTION: Don't initialize all tools
         # Use LLM to select only relevant tools based on user query
         if len(all_selected_tools) > 3:  # Only filter if we have many tools
             print(f"[TOOL SELECTION] Found {len(all_selected_tools)} tools, selecting relevant ones...")
@@ -402,50 +399,6 @@ def get_mcp_servers():
 def get_mcp_tools():
     tools = run_async(mcp_client.list_tools())
     return jsonify(tools)
-
-@app.route("/mcp/connect", methods=["POST", "OPTIONS"])
-def connect_mcp_server():
-    if request.method == 'OPTIONS':
-        return '', 200
-    data = request.json
-    print(f"DEBUG: Received data: {data}")
-    name = data.get("name")
-    command = data.get("command")
-    args = data.get("args", [])
-    env = data.get("env", {})
-    
-    print(f"DEBUG: name={name}, command={command}, args={args} (type={type(args)}), env={env}")
-    
-    if not name or not command:
-        return jsonify({"error": "Name and command are required"}), 400
-
-    success, message = run_async(mcp_client.connect_to_server(name, command, args, env))
-    if success:
-        return jsonify({"message": message}), 200
-    else:
-        # Check for Auth Required
-        if "AUTH_REQUIRED" in message:
-            auth_url = message.split(": ", 1)[1]
-            return jsonify({
-                "error": "Authentication required",
-                "auth_url": auth_url,
-                "message": "Please authorize in the browser window that opens."
-            }), 401
-            
-        return jsonify({"error": message}), 500
-
-
-
-@app.route("/mcp/disconnect", methods=["POST"])
-def disconnect_mcp_server():
-    data = request.json
-    name = data.get("name")
-    
-    if not name:
-        return jsonify({"error": "Name is required"}), 400
-        
-    mcp_client.remove_server(name)
-    return jsonify({"message": f"Server {name} disconnected"}), 200
 
 
 @app.route("/tool/approve", methods=["POST", "OPTIONS"])
