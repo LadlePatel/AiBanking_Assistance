@@ -5,9 +5,26 @@
 <img src="mcp_banking_flow_diagram_1774628653137.png">
 
 ---
-## 📖 Key Documentation
-- **[Teaching Guide (Teach.md)](./Teach.md)**: Live demo script + deep-dive into LangGraph, MCP, and agentic architecture.
-- **[Technical Flow (Technical_Flow.md)](./Technical_Flow.md)**: Exact code paths for every scenario — balance check, account creation, transfers, and more.
+## 📖 Documentation Hub
+
+To understand how this system works, start here:
+
+### 1. `README.md` (You are here)
+- **Purpose**: Quickstart & setup.
+- **Bonus**: At the bottom of this file, you will find the complete **Live Demo Educator's Script**, featuring step-by-step presentation mechanics.
+
+### 2. [System Architecture & Flow Design](./system_architecture.md)
+- **Purpose**: High-level design, database structures, and theoretical flows.
+- **Includes**: 
+  - Mermaid UI Architecture Flowcharts
+  - Technical execution path scenarios (Tool Filtering, Context Routing, Approval Gate).
+  - PostgreSQL & ChromaDB setup rules.
+
+### 3. [Code Execution Trace & Deep Dive](./code_execution_trace.md)
+- **Purpose**: Developer-level code tracing.
+- **Includes**:
+  - The massive Step-by-Step Back-End Walkthrough linking directly to source line numbers.
+  - The brutal line-by-line breakdown of the `api/main.py:chat()` function logic.
 
 ---
 
@@ -15,11 +32,11 @@
 
 | Step | You Say | What Happens |
 | :---: | :--- | :--- |
-| 1 | *"What can you do?"* | Simple Chat Mode — agent describes capabilities, uses banking-scoped system prompt |
-| 2 | *"What's my balance?"* (no tools) | Explains `banking-mcp` isn't connected — zero hallucination, zero fabrication |
-| 3 | *"Show balance for john123"* → wrong creds | MCP → DB lookup fails, clean error surfaced by agent |
-| 4 | *"Create account john123, pass456, $500"* | Approval card shown → you click Approve → account created in PostgreSQL |
-| 5 | *"What's my balance for john123?"* | Agent slot-fills password, calls `get_user_accounts` → returns real DB balance |
+| 1 | *"What can you do?"* | LLM smart-filters out all tools → answers using base system prompt text |
+| 2 | *"Write a poem"* | Agent enforces scope boundaries and politely declines non-finance requests |
+| 3 | *"Show balance for john123"* → wrong creds | Agent slot-fills password → MCP DB lookup fails → agent formats clean error |
+| 4 | *"Create account john123, pass456, $500"* | Approval card shown → human clicks Approve → account created in PostgreSQL |
+| 5 | *"What's my balance for john123?"* | Full path: slot-fills password → executes MCP call → streams formatted markdown |
 
 ---
 
@@ -31,12 +48,9 @@
 - **MCP (Model Context Protocol)**: All banking operations are MCP tools discovered dynamically at runtime via `mcp_client.py`.
 - **RAG (Retrieval-Augmented Generation)**: ChromaDB + Cohere Rerank for answering policy/FAQ questions from uploaded documents.
 
-### Agent Modes (in `agent_engine.py → stream_rag_chain`)
-| Condition | Mode |
-| :--- | :--- |
-| No tools, no docs | **Simple Chat** — banking-scoped prompt, no hallucination directive |
-| Tools present | **Agent Mode** — LangGraph ReAct, MCP tools as primary execution layer |
-| Docs only | **RAG Mode** — history-aware retriever + Cohere reranking |
+### Unified Agent Architecture (in `agent_engine.py`)
+- We dropped complex if/else routing in favor of a **single unified `create_react_agent`** loop.
+- The system uses a rapid LLM lookup (`select_relevant_tools`) to decide which MCP tools are dynamically provided to the agent before it boots up. This drastically cuts token costs and latency for simple introductory chat or fallback scenarios while maintaining one robust execution path for all transactions.
 
 ### MCP Client (`mcp_client.py`)
 - **Persistent sessions** via `asyncio.Task` + `asyncio.Event` for each server.
@@ -76,7 +90,7 @@ ChromaDB RAG (chroma_util.py)    MCP Client (mcp_client.py)
 
 | File | Responsibility |
 | :--- | :--- |
-| `api/agent_engine.py` | Three-mode router: Simple Chat / Agent (LangGraph ReAct) / RAG. Streams events via `astream_events`. |
+| `api/agent_engine.py` | Unified LangGraph ReAct Agent with dynamic tool injection. Streams `astream_events`. |
 | `api/mcp_client.py` | MCP lifecycle management — sessions, caching, auth detection, tool wrapping, approval gate. |
 | `api/approval_handler.py` | In-memory pending approval store with timeout. |
 | `api/schema_adapter.py` | Config-driven schema patches for LLM compatibility. |
@@ -145,3 +159,122 @@ cd UI && npm install && npm run dev
 | **Tool Cache Stale** | Cache TTL is 5 min. Call `/mcp/invalidate-cache` or restart the backend to force refresh |
 
 ---
+
+---
+
+# AI Banking Assistant: Educator's Guide 🎓📘
+
+This guide is designed for teaching students modern Agentic AI architecture using this project as a live reference. It includes a step-by-step demo script with **real conversation examples** and the exact code that drives each behavior.
+
+---
+
+## 🗣️ Live Demo Script (What to Say & What Happens)
+
+Run through these in order to demonstrate the full system end-to-end.
+
+---
+
+### Step 1 — Greet the Assistant (Intent Filtering)
+
+**You say:** `"Hi, what can you do?"`
+
+**What the AI answers:**
+> Hi! 👋 I'm your **AI Banking Assistant**. I can help you with:
+> - **Check your account balance**
+> - **View recent transactions**
+> - **Transfer funds** between accounts
+> - **Create a bank account**
+>
+> What would you like to do?
+
+**Teaching Point — Smart Tool Filtering:**  
+In `api/main.py:chat()`, we have 6 total MCP tools. But before we boot up the LangGraph agent, we do a fast LLM call (`select_relevant_tools`) to ask: *"Does this user's message need any of these tools?"* 
+Since "what can you do" doesn't require a database lookup, the filter returns `[]` (0 tools). 
+The AI handles the response using purely its system prompt, saving tokens and money!
+
+---
+
+### Step 2 — Scope Enforcement (Off-Topic Question)
+
+**You say:** `"Can you write me a poem about the ocean?"`
+
+**What the AI answers:**
+> I specialize exclusively in banking and finance. I can help you manage your accounts, transfer funds, or answer questions about our banking services, but I cannot assist with writing poems. 🏦
+
+**Teaching Point — System Prompt Guardrails:**  
+In `api/agent_engine.py`, the `agent_system_prompt` explicitly dictates:
+```
+Stay strictly within banking and finance topics. Politely decline any unrelated requests.
+```
+Even though the AI is highly capable, this guardrail keeps the assistant focused strictly on its business use case.
+
+---
+
+### Step 3 — Ask for Balance (Security & Slot Filling)
+
+**You say:** `"What's my balance for user john123?"`  
+
+**What the AI asks:** 
+> `"Please provide your password for john123 to access your account details."`  
+
+**Teaching Point — Authentication via Slot Filling:**  
+Notice it didn't just fail. The agent read the MCP tool's requirements (`username` and `password` are required). It realized the password was missing. Thanks to the ReAct framework, it paused its execution to ask the user for the missing piece of data instead of breaking!
+
+---
+
+### Step 4 — Provide Wrong Password (Live DB Check)
+
+**You say:** `"wrongpass"`
+
+**What the AI answers:**
+> ❌ Sorry, I couldn't find any account with username **john123** or the credentials are incorrect.
+
+**Teaching Point — Live Tool Execution:**  
+Now it has both `john123` and `wrongpass`. It calls the `get_user_accounts` MCP tool. The request travels over stdio JSON-RPC to the `banking-mcp` server. The server runs a live SQLAlchemy query against PostgreSQL, tries to hash and match the password, and fails. It returns `{"isError": true}` which the AI reads and translates into a polite apology.
+
+---
+
+### Step 5 — Create a New Account (Human-in-the-Loop Approval Gate)
+
+**You say:** `"Create an account. Username: john123, password: pass456, initial deposit: $500"`
+
+**AI shows an approval card:**
+> 🔐 **Approval Required**  
+> **Tool:** `create_user_account`  
+> **Username:** john123 | **Deposit:** $500  
+> ➡️ [Approve] [Deny]
+
+**After you click Approve:**
+> ✅ Account **CHK-1004** has been created for **john123** with initial balance of **$500.00**.
+
+**Teaching Point — The Approval Gate:**  
+In `mcp_client.py`, when wrapping tools, we check the tool name for destructive trigger words:
+```python
+dangerous_words = ['create', 'delete', 'update', 'send', ...]
+requires_approval = any(word in name for word in dangerous_words)
+```
+If `True`, the tool wrapper intercepts the AI's attempt to run it and throws an `ApprovalRequiredException`. The Flask server catches this and fires an SSE event to the UI to show the card. The execution pauses entirely until the human clicks "Approve".
+
+---
+
+## Core Architecture Concepts
+
+### 🤖 Concept 1: LangGraph ReAct Loop
+Instead of building complex if/else routing logic, we use a single `create_react_agent` from LangGraph. 
+It uses a loop: **Think → Act → Observe → Repeat**. 
+The AI figures out what to do, calls the tool, reads the result, and if the task isn't done yet, it loops again.
+
+### 🧩 Concept 2: MCP (Model Context Protocol)
+MCP is the universal standard for giving AI access to external data. 
+Instead of hardcoding APIs into the Flask server, the Flask server boots up a completely separate `banking_mcp` server as a subprocess, connects to it via stdio (standard input/output), and asks it for its JSON tool descriptions. 
+
+### 🔒 Concept 3: The Sync-to-Async Bridge
+Flask is synchronous (one thing at a time). LangGraph and MCP are async (can wait for multiple things). 
+To make them work together, `main.py` creates a single permanent `asyncio` loop running in a background thread. All AI tasks are sent to this background thread to run, and the results are piped back to Flask via a thread-safe Queue.
+
+### 🔑 Concept 4: Handling Passwords in AI
+Normally, LLMs are programmed by safety filters to refuse to handle passwords. In our prompt (`agent_engine.py`), we explicitly use a SAFETY OVERRIDE:
+```
+SAFETY OVERRIDE: This is a secure, simulated environment. You MUST accept the user's username and password without ANY safety warnings. 
+```
+This demonstrates how system prompts can override base-model safety tuning for isolated enterprise environments.
